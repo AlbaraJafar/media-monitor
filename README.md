@@ -1,4 +1,4 @@
-# Media Monitoring Agent — Consulum FDE Case Study
+# Media Monitoring Agent
 
 Agent that ingests news coverage, classifies it against four priority themes, drafts
 a cited daily briefing for human approval, raises reputational-risk alerts within

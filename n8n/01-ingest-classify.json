@@ -4,13 +4,21 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "minutes", "minutesInterval": 5 }]
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
         }
       },
       "name": "Every 5 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
@@ -19,12 +27,26 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "{}",
-        "options": {}
+        "options": {
+          "timeout": 600000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.MM_API_KEY }}"
+            }
+          ]
+        }
       },
       "name": "Call /ingest",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
@@ -33,43 +55,119 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "{}",
-        "options": {}
+        "options": {
+          "timeout": 600000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.MM_API_KEY }}"
+            }
+          ]
+        }
       },
       "name": "Call /classify",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [680, 300]
+      "position": [
+        680,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
           "number": [
-            { "value1": "={{$json.high_risk_flagged}}", "operation": "larger", "value2": 0 }
+            {
+              "value1": "={{$json.high_risk_flagged}}",
+              "operation": "larger",
+              "value2": 0
+            }
           ]
         }
       },
       "name": "Any High Risk?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
         "method": "GET",
         "url": "http://api:8000/alerts/pending",
-        "options": {}
+        "options": {
+          "timeout": 30000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.MM_API_KEY }}"
+            }
+          ]
+        }
       },
       "name": "Get Pending Alerts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, 220]
+      "position": [
+        1120,
+        220
+      ]
     }
   ],
   "connections": {
-    "Every 5 Minutes": { "main": [[{ "node": "Call /ingest", "type": "main", "index": 0 }]] },
-    "Call /ingest": { "main": [[{ "node": "Call /classify", "type": "main", "index": 0 }]] },
-    "Call /classify": { "main": [[{ "node": "Any High Risk?", "type": "main", "index": 0 }]] },
-    "Any High Risk?": { "main": [[{ "node": "Get Pending Alerts", "type": "main", "index": 0 }], []] }
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Call /ingest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call /ingest": {
+      "main": [
+        [
+          {
+            "node": "Call /classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call /classify": {
+      "main": [
+        [
+          {
+            "node": "Any High Risk?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any High Risk?": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Alerts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
   },
-  "_note": "NOTE: chain 'Get Pending Alerts' output into a Slack node (Post Message) per alert item, then POST /alerts/{id}/ack once posted. Add your own Slack credential in the n8n UI - not exported here for security."
+  "_note": "NOTE: chain 'Get Pending Alerts' output into a Slack node (Post Message) per alert item, then POST /alerts/{id}/ack once posted. Add your own Slack credential in the n8n UI - not exported here for security. AUTH: every HTTP node sends X-API-Key from the MM_API_KEY env var, which docker-compose sets from API_KEY in .env. For production, move it into an n8n Header Auth credential so the secret lives in n8n's encrypted credential store."
 }

@@ -3,12 +3,15 @@
 ## Components
 
 ```
-n8n (schedule, 5 min) → POST /ingest  → feedparser + trafilatura → Postgres (articles)
-                                       → embed + cluster near-duplicates (pgvector)
-n8n (schedule, 5 min) → POST /classify → per-article structured LLM call (4 themes,
+n8n (schedule, 5 min) → POST /ingest  → feeds (keyword gate, Google News link decode)
+                                          → trafilatura → Postgres (articles)
+                                       → embed locally + cluster near-duplicates (pgvector)
+n8n (schedule, 5 min) → POST /classify → per-story structured LLM call (relevance, 4 themes,
                                           sentiment, priority, risk_score) → Postgres
                                        → risk_score ≥ 0.7 → alerts table
-n8n (webhook, on new alert) → notify on-call analyst (Slack) → ack
+                                       → primary vendor down → fallback model (other vendor)
+                                       → both vendors down → HTTP 503 → n8n Error Workflow
+n8n (on high risk)    → GET /alerts/pending → notify on-call analyst (Slack) → ack
 n8n (schedule, 05:30 daily) → POST /brief → draft (LLM, cited) → verify (LLM,
                                           claim-by-claim against source) → Postgres
                                        → send-and-wait approval to named analyst
@@ -16,80 +19,178 @@ n8n (schedule, 05:30 daily) → POST /brief → draft (LLM, cited) → verify (L
 Analyst → n8n chat trigger → POST /ask → hybrid retrieval (BM25 + embeddings) → answer
 ```
 
+Every LLM call goes through `app/services/llm.py`, which picks the vendor from the
+model name (`claude-*` → Anthropic, `gemini-*` → Google, `humain-*` → HUMAIN Node,
+otherwise OpenAI) and logs model, tokens and latency to the `runs` table.
+
 ## Model choice and cost
 
-Two-tier model use: a smaller/cheaper model for the high-volume per-item
-classification step (~900 calls/day after dedup), and a stronger model for
-briefing generation and the claim verifier (1-2 calls/day). This keeps the
-per-item cost low where volume is high, and spends more compute only where
-reasoning quality matters most (a briefing the Director General reads).
+Two-tier model use: a small, cheap model for the high-volume per-story
+classification step, and a stronger model for briefing generation and the claim
+verifier (two calls a day). This spends compute only where reasoning quality matters
+most — a briefing the Director General reads.
 
-Estimated monthly run cost at ~1,500 items/day (before dedup): low hundreds of
-USD, dominated by the classification step. See the cost breakdown slide for
-the itemized arithmetic — verify current provider pricing before presenting
-firm numbers.
+| Role | Model | Why |
+|---|---|---|
+| Classification | `gpt-6-luna` | Tied for best on the gold set at ~10x lower cost than the next option |
+| Briefing + verifier | `gpt-6-sol` | Strong drafting; all claims verified on live runs |
+| Classification fallback | `claude-haiku-4-5` | A different vendor on purpose; same cheap tier |
+| Briefing fallback | `claude-sonnet-5-5` | A different vendor on purpose (see failure handling) |
+| Embeddings | `multilingual-e5-large`, local | Arabic and English in one vector space; no text leaves the container |
+
+**Measured cost** — from the `runs` table for this build (`make costs`), 29–30
+September 2026, at the vendors' published standard rates on those dates:
+
+- Classification on `gpt-6-luna`: **$0.268 per 1,000 articles** (412 production
+  calls, average 1,379 input / 261 output tokens).
+- One live daily briefing on `gpt-6-sol`, draft plus verification, 40 stories:
+  **$0.10 and $0.12** on the two live runs. The same briefing served by the
+  `claude-sonnet-5-5` fallback: $0.29.
+- Embeddings and dedup run locally: $0 in API spend.
+- Total LLM spend for the whole build session: **$4.52**, of which $3.85 was the
+  model comparison (4 models × 120 items × 2 prompt versions) and $0.67 was the
+  pipeline itself.
+
+Projected run cost at the brief's ~1,500 items/day: classification ≈ **$12/month**
+(45,000 × $0.268/1,000; this is an upper bound — 30% of live articles were
+near-duplicates that are never sent to the model), briefings ≈ **$3.50/month**,
+so **about $15/month**, or about $21 if every briefing fell back to the secondary
+vendor. Not measured: the `/ask` endpoint (usage-dependent) and infrastructure.
+Re-check vendor pricing before quoting these figures.
 
 Model versions are pinned in `app/config.py`. The evaluation set is re-run
-whenever a model version changes, since judge/classifier calibration can
+whenever a model version or prompt changes, since classifier calibration can
 drift silently across model updates.
 
 ## Data handling and security
 
 - **Public news only** in this prototype — acceptable to route through a hosted
-  LLM API.
+  LLM API. OpenAI calls are sent with `store=False`, so responses are not retained
+  on the vendor side for later retrieval; embeddings never leave the container.
 - **Internal/confidential documents (production path, not built here):** would
   stay inside the client's environment — in-Kingdom or private model endpoint,
-  no vendor training/retention — never sent to a general hosted API.
+  no vendor training/retention — never sent to a general hosted API. The vendor
+  routing in `llm.py` already supports an in-Kingdom option (HUMAIN Node); it is
+  wired but untested pending preview access.
 - **Access control at retrieval time:** production design attaches an ACL to
   every indexed chunk and filters in the retrieval query itself, not after
   generation, so a restricted document can't leak into an answer to an
   unauthorized user.
 - **Prompt injection:** ingested article text is untrusted input. It is passed
-  as data inside a delimited block, the classification/briefing steps have no
+  as data inside `<article>` tags, the classification/briefing steps have no
   tool access, output is schema-constrained, and the verifier double-checks
   claims — so a hostile phrase embedded in a scraped article can't hijack the
   pipeline's behavior.
 - **Human sign-off is enforced technically, not just procedurally:** only a
-  briefing with status=`approved` (set via the `/approve` endpoint by a named
-  analyst) can be delivered; `/deliver` rejects anything else.
-- **Audit trail:** `approved_by`, `approved_at`, and the exact `content_md`
-  that was approved are stored — traceable if a Director asks "who approved
-  this."
-- Secrets via `.env` / a secrets manager in production, never committed.
+  briefing with status=`approved` can be delivered; `/deliver` rejects anything
+  else, and every endpoint except `/health` requires the shared API key. The key
+  stands in for SSO: in production `approved_by` would come from the
+  authenticated identity rather than a request field.
+- **Audit trail:** `approved_by`, `approved_at`, the delivered `content_md` and the
+  untouched AI draft (`draft_md`) are stored — traceable if a Director asks "who
+  approved this," and the draft-vs-approved diff is the correction signal.
+- **Synthetic fixtures never reach a real briefing:** excluded by default; only
+  the offline demo opts in.
+- Secrets via `.env` / a secrets manager in production, never committed. Database,
+  API, n8n and Adminer ports are bound to localhost.
 
 ## Failure handling — the "06:45" story
 
 1. Briefing generation is scheduled for 05:30, not 06:30, to leave ~75 minutes
    of recovery buffer before the 07:30 deadline.
-2. Each LLM call retries with backoff on transient API errors or malformed
-   JSON (`services/llm.py`).
-3. If generation still fails, the pipeline falls back to a secondary model
-   (config-swappable).
-4. If it still fails, a clearly labeled **DEGRADED** briefing is produced from
-   whatever was successfully classified, with a banner stating what's missing
-   (see `services/briefing.py: run_briefing` — empty-window fallback is the
-   simplest case of this, extend the same pattern for partial failures).
-5. The on-call analyst is paged if no usable draft exists by a checkpoint
-   time, with the manual process as the last resort.
-6. Nothing reaches the Director General without a human-approved status,
+2. Transient API errors (429, 5xx, connection) are retried with backoff by the
+   vendor SDKs; malformed or truncated structured output is retried by
+   `services/llm.py`.
+3. If the primary briefing model still fails, the draft and the verifier each
+   fall back to a secondary model at a **different vendor**. Tested on 30 September
+   2026 by giving the pipeline an invalid OpenAI key: both steps failed over to
+   `claude-sonnet-5-5` and produced a complete briefing (83 citations, 0 unverified
+   claims) in 88 seconds. The `runs` table records the fallback.
+4. If every model fails, a clearly labeled **DEGRADED** briefing is produced
+   without any LLM: the classified stories ranked by risk, with a banner. The
+   same happens when there is no classified coverage in the window.
+5. If the verifier cannot run, the draft is marked as unverified rather than
+   passed as clean (fail closed).
+6. Classification — the alert path — uses the same failover through the same
+   code (`call_structured_with_fallback`), to `claude-haiku-4-5`. Tested on 30
+   September 2026 with an invalid OpenAI key: 12/12 stories classified by the
+   fallback in 8.4 s, both known risk items still alerted, each row records the
+   model that actually answered, and `/classify` reports `fallback_used` so n8n
+   can see the system is running degraded. A per-batch circuit breaker sends the
+   rest of a batch straight to the fallback after 3 primary failures, so an outage
+   doesn't spend the 15-minute alert budget on retries. The fallback is weaker on
+   the gold set (5/7 risk items vs 6/7): degraded, not dark. Only if both vendors
+   fail does `/classify` return 503, so the n8n Error Workflow pages on-call
+   instead of alerts silently stopping (also tested). Overlapping scheduler runs
+   are skipped with a Postgres advisory lock rather than double-processing.
+7. A failing feed is isolated and reported per feed in the `/ingest` response.
+8. Nothing reaches the Director General without a human-approved status,
    degraded or not.
 
 ## Evaluation methodology
 
-A hand-labeled gold set (`eval/gold_set.jsonl`, target ~120 items, including a
-deliberate Arabic slice and ambiguous cases) is compared against what the
-pipeline actually produced. `eval/run_eval.py` reports per-theme precision/
-recall/F1 and, as the headline metric, alert recall/precision — since missing
-a real reputational crisis is a worse failure than one false alarm. Briefing
-faithfulness is checked by the claim-level verifier plus manual spot-checks of
-a sample. Analyst corrections made at approval time are the intended feedback
-loop for improving the gold set and, over time, the prompts.
+A gold set of 120 items (`eval/gold_set.jsonl`: 104 live articles, 16 synthetic;
+53 Arabic; 7 high-risk) is scored against the pipeline. Labels follow written rules
+(`eval/LABELING_GUIDE.md`), were AI-drafted without sight of the pipeline's
+predictions, and are under human review: **11 rows reviewed so far, 2 changed;
+109 still unreviewed**, so the numbers below are provisional. `eval/run_eval.py`
+reports alert recall/precision as the headline metric — missing a real crisis is
+worse than a false alarm — plus relevance accuracy, multi-label theme F1 and
+sentiment, sliced by language. `eval/compare_models.py` runs the production prompt
+on several models side by side.
+
+Results on the current prompt (30 September 2026):
+
+| Model | Risk items caught | False alarms | Relevance | Theme F1 | $ / 1,000 |
+|---|---|---|---|---|---|
+| gpt-6-luna | 6/7 | 1 | 91% | 0.82 | 0.27 |
+| gpt-6-sol | 6/7 | 1 | 91% | 0.84 | 4.85 |
+| claude-haiku-4-5 | 5/7 | 2 | 87% | 0.75 | 2.77 |
+| claude-sonnet-5-5 | 4/7 | 0 | 94% | 0.84 | 7.97 |
+
+What the evaluation changed:
+- **The alert policy belonged in the prompt.** The first prompt produced 3–10 false
+  alarms per model, almost all war and political news, because nothing told the
+  model the pager is for tourism-owned risk. Writing the policy into the rubric
+  removed them; on live data, alerts on real coverage fell from 10 to 5.
+- **Dedup threshold** raised from 0.88 to 0.90 after live pairs showed distinct
+  stories merging below 0.90 (a false merge hides a story from the briefing).
+
+Caveats, stated plainly:
+- The prompt was revised after seeing errors on this same set, and there are only
+  7 positives (each is worth 14 points of recall). A held-out set is needed.
+- Arabic alert recall rests on a single, synthetic item.
+- Scores vary between runs near the threshold: one article scored 0.82 in the
+  eval and 0.55 when re-classified. A fixed 0.7 threshold is also not neutral
+  across vendors, which calibrate differently.
+- Three synthetic fixtures were edited to name the country they are set in.
+- Both current luna/sol errors are on `headline_only` articles, where the reviewer
+  read the full source and the model saw only the headline (see next section).
+
+Briefing faithfulness is checked by the claim-level verifier plus manual
+spot-checks. Analyst corrections at approval time are the intended feedback loop
+for improving the gold set and, over time, the prompts.
 
 ## What I'd build next with two more weeks
 
-1. Expand the gold set past 120 items and add an inter-annotator check.
-2. Move access-control-at-retrieval from design to implementation, and pilot
-   ingesting one internal document type under it.
-3. Shadow-mode run against the manual process to measure real agreement
+1. **Close the headline-only fetch gap — an ingestion fix, not a model fix.** 28% of
+   live articles came from publishers that block automated fetches, so the pipeline
+   kept only the headline. Both remaining classifier errors trace to this: a
+   headline about a missile at Riyadh (#113) was scored not relevant, though the
+   full story was the airport fuel-depot fire; and a headline about Cathay Pacific
+   suspensions (#51) raised an alert, though the full story was a third extension of
+   an existing suspension. No model can classify text it never received. Options:
+   licensed feeds or a news API for the blocked outlets, polite retry through the
+   publisher's own RSS body, and until then treating `headline_only` items as
+   lower-confidence — routed to the analyst as "needs a read" rather than scored
+   as if complete.
+2. Finish the human review of the gold set, add a held-out set from the following
+   days' coverage (with more real Arabic risk items), and an inter-annotator check.
+3. A second pass for scores near the alert threshold to damp run-to-run
+   variance, and per-model alert thresholds (the fallback calibrates differently).
+4. Move access-control-at-retrieval from design to implementation, and pilot
+   ingesting one internal document type under it on an in-Kingdom endpoint.
+5. Shadow-mode run against the manual process to measure real agreement
    before cutover.
-4. Prompt-caching and batch-API use to reduce cost further at scale.
+6. Prompt-caching and batch-API use to reduce cost further at scale; LLM
+   confirmation for cross-language duplicate pairs, which embeddings alone miss.

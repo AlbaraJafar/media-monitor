@@ -19,8 +19,11 @@ class Settings(BaseSettings):
     humain_api_key: str = ""   # for humain-* models (HUMAIN Node, approved preview access)
     classify_model: str = "gpt-6-luna"         # cheap tier, high volume, structured output
     classify_reasoning_effort: str | None = None  # e.g. "low"; unset = model default
+    # Different vendor on purpose: the alert path must survive a whole-provider outage.
+    # Lower alert recall than the primary on the gold set (5/7 vs 6/7) — degraded, not dark.
+    classify_fallback_model: str = "claude-haiku-4-5"
     brief_model: str = "gpt-6-sol"             # briefing draft + claim verifier
-    brief_fallback_model: str = "gpt-5.6-sol"  # previous generation; set a claude-* model for cross-vendor failover
+    brief_fallback_model: str = "claude-sonnet-5-5"  # deliberately a different vendor: survives a whole-provider outage
     classify_concurrency: int = 8
 
     # Alerting

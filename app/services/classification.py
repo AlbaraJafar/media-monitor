@@ -10,7 +10,7 @@ from app.config import settings
 from app.db import SessionLocal
 from app.models import Alert, Article, Classification
 from app.schemas import ClassificationResult
-from app.services.llm import call_structured
+from app.services.llm import PrimaryBreaker, call_structured_with_fallback
 
 logger = logging.getLogger("classification")
 
@@ -78,18 +78,23 @@ def _user_prompt(article: Article) -> str:
 </article>"""
 
 
-def classify_article(db: Session, article: Article) -> tuple[Classification | None, float]:
+def classify_article(db: Session, article: Article,
+                     breaker: PrimaryBreaker | None = None) -> tuple[Classification | None, float, str | None]:
     if not article.clean_text:
-        return None, 0.0
+        return None, 0.0, None
 
-    result: ClassificationResult = call_structured(
+    # Same failover as the briefing: this is the alert path, so a primary-vendor
+    # outage must degrade to the fallback model, not silence alerts.
+    result, model_used = call_structured_with_fallback(
         db=db,
         step="classify",
         model=settings.classify_model,
+        fallback_model=settings.classify_fallback_model,
         system=SYSTEM_PROMPT,
         user_prompt=_user_prompt(article),
         schema=ClassificationResult,
         reasoning_effort=settings.classify_reasoning_effort,
+        breaker=breaker,
     )
 
     now = datetime.now(timezone.utc)
@@ -107,7 +112,7 @@ def classify_article(db: Session, article: Article) -> tuple[Classification | No
             risk_score=risk,
             justification=result.justification,
             evidence_quote=result.evidence_quote,
-            model_name=settings.classify_model,
+            model_name=model_used,  # the model that actually answered, for the audit trail
             created_at=now,
         )
         db.add(row)
@@ -128,16 +133,17 @@ def classify_article(db: Session, article: Article) -> tuple[Classification | No
             .on_conflict_do_nothing(index_elements=["article_id"])
         )
     db.commit()
-    return rows[-1], risk
+    return rows[-1], risk, model_used
 
 
-def _classify_one(article_id: int) -> tuple[bool, bool]:
-    """Worker: own DB session per thread. Returns (classified, high_risk)."""
+def _classify_one(article_id: int, breaker: PrimaryBreaker) -> tuple[bool, bool, bool]:
+    """Worker: own DB session per thread. Returns (classified, high_risk, served_by_fallback)."""
     db = SessionLocal()
     try:
         article = db.get(Article, article_id)
-        row, risk = classify_article(db, article)
-        return row is not None, risk >= settings.risk_alert_threshold
+        row, risk, model_used = classify_article(db, article, breaker)
+        return (row is not None, risk >= settings.risk_alert_threshold,
+                model_used is not None and model_used != settings.classify_model)
     except Exception:
         db.rollback()
         logger.exception("classification failed for article %s", article_id)
@@ -158,15 +164,18 @@ def run_classify(db: Session, article_ids: list[int] | None = None) -> dict:
 
     ids = db.execute(query.order_by(Article.fetched_at.desc())).scalars().all()
 
-    classified = high_risk = errors = 0
+    classified = high_risk = errors = fallback_used = 0
+    breaker = PrimaryBreaker()
     with ThreadPoolExecutor(max_workers=settings.classify_concurrency) as pool:
-        futures = [pool.submit(_classify_one, aid) for aid in ids]
+        futures = [pool.submit(_classify_one, aid, breaker) for aid in ids]
         for f in futures:
             try:
-                ok, risky = f.result()
+                ok, risky, fell_back = f.result()
                 classified += ok
                 high_risk += risky
+                fallback_used += fell_back
             except Exception:
                 errors += 1
 
-    return {"classified": classified, "high_risk_flagged": high_risk, "errors": errors}
+    return {"classified": classified, "high_risk_flagged": high_risk, "errors": errors,
+            "fallback_used": fallback_used}

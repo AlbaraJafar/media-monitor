@@ -60,6 +60,7 @@ class ClassifyResponse(BaseModel):
     classified: int
     high_risk_flagged: int
     errors: int
+    fallback_used: int = 0  # >0 means the primary model is failing and we're running degraded
 
 
 # ---- Briefing ----

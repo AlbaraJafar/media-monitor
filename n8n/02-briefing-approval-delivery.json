@@ -4,13 +4,21 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "cronExpression", "expression": "30 5 * * *" }]
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 5 * * *"
+            }
+          ]
         }
       },
       "name": "05:30 Daily",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
@@ -19,12 +27,26 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "{}",
-        "options": {}
+        "options": {
+          "timeout": 300000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.MM_API_KEY }}"
+            }
+          ]
+        }
       },
       "name": "Generate Draft",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
@@ -33,18 +55,35 @@
       "name": "Send For Approval (Slack Send-and-Wait)",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [680, 300]
+      "position": [
+        680,
+        300
+      ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=http://api:8000/brief/{{$json.briefing_id}}/deliver",
-        "options": {}
+        "options": {
+          "timeout": 30000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.MM_API_KEY }}"
+            }
+          ]
+        }
       },
       "name": "Mark Delivered + Send to DG Office",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
@@ -53,13 +92,46 @@
       "name": "Escalate To Backup Analyst",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [680, 480]
+      "position": [
+        680,
+        480
+      ]
     }
   ],
   "connections": {
-    "05:30 Daily": { "main": [[{ "node": "Generate Draft", "type": "main", "index": 0 }]] },
-    "Generate Draft": { "main": [[{ "node": "Send For Approval (Slack Send-and-Wait)", "type": "main", "index": 0 }]] },
-    "Send For Approval (Slack Send-and-Wait)": { "main": [[{ "node": "Mark Delivered + Send to DG Office", "type": "main", "index": 0 }]] }
+    "05:30 Daily": {
+      "main": [
+        [
+          {
+            "node": "Generate Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Draft": {
+      "main": [
+        [
+          {
+            "node": "Send For Approval (Slack Send-and-Wait)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send For Approval (Slack Send-and-Wait)": {
+      "main": [
+        [
+          {
+            "node": "Mark Delivered + Send to DG Office",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "_note": "Placeholder Slack nodes - add real Slack OAuth credential in the n8n UI before running. Timeout branch to 'Escalate To Backup Analyst' needs wiring once the send-and-wait node is configured with real credentials."
+  "_note": "Placeholder Slack nodes - add real Slack OAuth credential in the n8n UI before running. Timeout branch to 'Escalate To Backup Analyst' needs wiring once the send-and-wait node is configured with real credentials. AUTH: every HTTP node sends X-API-Key from the MM_API_KEY env var, which docker-compose sets from API_KEY in .env. For production, move it into an n8n Header Auth credential so the secret lives in n8n's encrypted credential store."
 }

@@ -8,64 +8,109 @@ a cited daily briefing for human approval, raises reputational-risk alerts withi
 
 ```bash
 git clone <this-repo> && cd media-monitor
-cp .env.example .env        # add your ANTHROPIC_API_KEY
-make up                      # builds and starts Postgres+pgvector, the API, and n8n
+cp .env.example .env        # add OPENAI_API_KEY (and ANTHROPIC_API_KEY for the fallback), set API_KEY
+make up                      # builds and starts Postgres+pgvector, the API, n8n and Adminer
 ```
 
+First boot downloads the local embedding model (~2 GB, cached in a Docker volume);
+`GET /health` reports `embedder_loaded: true` when it is ready. On Windows, install
+`make` with `winget install ezwinports.make`, or run the commands in the Makefile directly.
+
 Then, either:
-- **Automated (live feeds):** `make demo` runs ingest → classify → brief once, end to end, and prints the result.
+- **Automated (live feeds):** `make demo` runs ingest → classify → alerts → brief once,
+  end to end, on real coverage. Synthetic fixtures are never included in this briefing.
 - **Automated (guaranteed, no network dependency):** `make demo-safe` seeds a fixed
   set of synthetic backup articles (`eval/synthetic_articles.json`, clearly tagged
   `source="Synthetic Demo Data"`) — including deliberate high-risk items to trigger
-  the alert path on command — then classifies and briefs. Use this as a fallback
-  if a live feed is down during the actual presentation.
-- **Via n8n:** open http://localhost:5678 (admin / changeme_local), import the workflows
-  from `/n8n/*.json`, and trigger the Ingest workflow manually.
+  the alert path on command — then classifies and briefs. Real reputational-risk
+  coverage is rare in any given window, so this is the only way to show the alert
+  path firing on demand, and the fallback if a live feed is down during the presentation.
+- **Via n8n:** open http://localhost:5678 (create the owner account on first visit —
+  n8n no longer has a default login), import the workflows from `/n8n/*.json`, and
+  trigger the Ingest workflow manually.
 - **Browse the database directly:** http://localhost:8080 (Adminer) — System:
   PostgreSQL, Server: `db`, Username: `mm`, Password: `mm_local_password`,
-  Database: `media_monitor`. Faster than writing psql queries while debugging.
+  Database: `media_monitor`. A local debugging convenience, bound to localhost only;
+  it would not ship to production.
 
-To run the evaluation report against the hand-labeled gold set:
+API docs (interactive): http://localhost:8000/docs — click **Authorize** and paste
+`API_KEY` from `.env`. Every endpoint except `/health` requires it.
+
+Useful extras: `make costs` (measured LLM spend per step and model), `make latency`
+(publish → alert timing), `make alerts`, `make reset`.
+
+## Evaluation
+
 ```bash
-make eval
+make eval                                                     # score what the pipeline stored
+docker compose exec api python -m eval.compare_models gpt-6-luna claude-haiku-4-5   # head-to-head
 ```
 
-API docs (interactive): http://localhost:8000/docs
+The gold set (`eval/gold_set.jsonl`, 120 items, 53 Arabic) is built from
+`eval/gold_review.csv` by `python -m eval.build_gold`, following the written rules in
+`eval/LABELING_GUIDE.md`. Labels were AI-drafted without sight of the pipeline's
+predictions and are being human-reviewed; each row records its provenance, and
+`build_gold` warns about rows not yet reviewed. See ARCHITECTURE.md for results and
+their caveats.
 
 ## What's built vs. what's deliberately scoped out
 
-**Built:** ingest (8-10 English sources + Arabic Google News queries), URL-level +
-embedding-based near-duplicate clustering, 4-theme classification with sentiment/
-priority/risk score/justification, a cited briefing draft with a **claim-level
-verifier** that checks every claim against its cited source, n8n approval workflow
-(send-and-wait to a named analyst) and scheduled delivery, a 15-minute risk-alert
-path, and a hybrid-retrieval (BM25 + embeddings) Q&A endpoint over the archive.
+**Built:** ingest (7 outlet feeds + 8 Google News queries, English and Arabic, with
+Google News links resolved to the real publisher), URL-level + embedding-based
+near-duplicate clustering, 4-theme classification with relevance gate, sentiment,
+priority, risk score and justification (schema-enforced structured output), a cited
+briefing draft with a **claim-level verifier** that checks every claim against its
+cited source and fails closed, a tested **cross-vendor model fallback** on both the
+alert path and the briefing, and a no-LLM DEGRADED briefing, n8n approval workflow (send-and-wait to a named analyst) and
+scheduled delivery, a 15-minute risk-alert path, a hybrid-retrieval (BM25 +
+embeddings) Q&A endpoint, per-call cost/latency logging, and an evaluation harness
+that compares models side by side.
 
 **Deliberately not built** (see architecture note for the intended design):
-WhatsApp delivery, a polished front end, multi-user auth, ingestion of internal/
-confidential documents. Cut to protect the reliability of the core loop within the
-time box, per the brief's own guidance.
+WhatsApp delivery, a polished front end, multi-user auth (a shared API key stands in
+for SSO), ingestion of internal/confidential documents. Cut to protect the
+reliability of the core loop within the time box, per the brief's own guidance.
+
+## Measured cost
+
+From this build's own `runs` table (`make costs`), not an estimate:
+
+| Step | Model | Measured |
+|---|---|---|
+| Classification | gpt-6-luna | **$0.268 per 1,000 articles** (412 calls, avg 1,379 in / 261 out tokens) |
+| Daily briefing (draft + verify, 40 stories) | gpt-6-sol | **$0.10–0.12 each** |
+| Same briefing served by the fallback | claude-sonnet-5-5 | $0.29 |
+| Embeddings / dedup | local e5 model | $0 |
+
+At the brief's ~1,500 items/day that is **about $12/month for classification plus
+$3.50 for briefings — roughly $15/month**. Details and assumptions in ARCHITECTURE.md.
 
 ## Architecture
 
 See `ARCHITECTURE.md` for the one-page note: component diagram, model choice and
-cost rationale, security/data-handling design (including the path for internal
-documents), the 06:45 failure-handling story, and the evaluation methodology.
+measured cost, security/data-handling design (including the path for internal
+documents), the 06:45 failure-handling story and the failover test, and the
+evaluation methodology and results.
 
 ## Repo layout
 
 ```
 app/
-  routers/        FastAPI endpoints — thin, call into services/
+  routers/        FastAPI endpoints — thin, call into services/ (ops.py = cost + latency)
   services/        all real logic: ingestion, dedupe, embeddings, classification,
                     briefing + verification, retrieval, ask, alerting, LLM wrapper
+  services/llm.py   the only file that knows which vendor is behind a model name
+  security.py       API-key check for every non-health endpoint
   models.py         SQLAlchemy ORM (mirrors scripts/init_db.sql)
   schemas.py        Pydantic schemas — structured LLM output + API contracts
-  sources.py        configured RSS/news feeds (swap freely, see comments)
+  sources.py        configured feeds and the keyword gate (verified 2026-09-29)
 eval/
-  gold_set.jsonl    hand-labeled evaluation set (starter — expand to ~120 items)
-  run_eval.py       precision/recall/F1 per theme + alert recall/precision
-n8n/                exported workflow JSON: ingest, alert, briefing-approval, error
+  LABELING_GUIDE.md what "correct" means, including the alert policy
+  gold_review.csv   labels under human review  ->  build_gold.py  ->  gold_set.jsonl
+  run_eval.py       alert recall/precision, relevance, multi-label theme F1, by language
+  compare_models.py same prompt, several models: quality, cost, latency side by side
+  synthetic_articles.json   demo fixtures
+n8n/                exported workflow JSON: ingest+alert, briefing-approval, error
 scripts/init_db.sql schema (articles, classifications, alerts, briefings, runs, gold_labels)
 ```
 

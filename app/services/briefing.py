@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import Article, Briefing, Classification
 from app.services.classification import NOT_RELEVANT
-from app.services.llm import call_structured, call_text
+from app.services.llm import call_structured_with_fallback, call_text
 
 logger = logging.getLogger("briefing")
 
@@ -177,16 +177,15 @@ def verify_draft(db: Session, draft_md: str, selected: list[tuple[Article, dict]
         f"Briefing draft:\n\n{draft_md}\n\n---\n\nCited articles:\n\n"
         + "\n\n".join(_format_article_block(a, m, chars=4000) for a, m in cited_articles)
     )
-    for model in (settings.brief_model, settings.brief_fallback_model):
-        try:
-            result: VerificationResult = call_structured(
-                db=db, step="verify", model=model, system=VERIFY_SYSTEM_PROMPT,
-                user_prompt=user_prompt, schema=VerificationResult, max_tokens=16000,
-            )
-            return [c.model_dump() for c in result.claims]
-        except Exception:
-            logger.exception("verifier failed on %s", model)
-    return None
+    try:
+        result, _ = call_structured_with_fallback(
+            db=db, step="verify", model=settings.brief_model, fallback_model=settings.brief_fallback_model,
+            system=VERIFY_SYSTEM_PROMPT, user_prompt=user_prompt, schema=VerificationResult, max_tokens=16000,
+        )
+    except Exception:
+        logger.exception("verifier failed on primary and fallback models")
+        return None
+    return [c.model_dump() for c in result.claims]
 
 
 def build_citations_json(articles: list[Article], claims: list[dict]) -> list[dict]:

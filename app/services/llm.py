@@ -18,6 +18,7 @@ Every call writes a `runs` row with model + token counts, which is what the
 cost report (/runs/summary) is computed from.
 """
 import logging
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -218,6 +219,8 @@ def call_structured(
     schema: type[BaseModel],
     max_tokens: int = 2048,
     reasoning_effort: str | None = None,
+    ok_status: str = "ok",
+    ok_detail: str | None = None,
 ) -> BaseModel:
     """Calls the model with structured outputs and returns a validated `schema` instance."""
     started = datetime.now(timezone.utc)
@@ -236,8 +239,74 @@ def call_structured(
         _log_run(db, step, model, "error", started, t0, result, detail=f"unusable output: {result.problem}")
         raise LLMOutputError(result.problem)
 
-    _log_run(db, step, model, "ok", started, t0, result)
+    _log_run(db, step, model, ok_status, started, t0, result, detail=ok_detail)
     return result.parsed
+
+
+class PrimaryBreaker:
+    """
+    Per-batch circuit breaker. During a provider outage every primary call burns
+    the SDK's retry backoff before failing; after `threshold` primary failures the
+    rest of the batch goes straight to the fallback, keeping the alert path inside
+    its 15-minute target. Thread-safe; create one per batch.
+    """
+
+    def __init__(self, threshold: int = 3):
+        self.threshold = threshold
+        self._failures = 0
+        self._lock = threading.Lock()
+
+    @property
+    def open(self) -> bool:
+        return self._failures >= self.threshold
+
+    def record_failure(self) -> None:
+        with self._lock:
+            self._failures += 1
+            if self._failures == self.threshold:
+                logger.warning("primary model failed %d times in this batch; routing the rest to fallback",
+                               self.threshold)
+
+
+def call_structured_with_fallback(
+    db: Session,
+    step: str,
+    model: str,
+    fallback_model: str | None,
+    system: str,
+    user_prompt: str,
+    schema: type[BaseModel],
+    max_tokens: int = 2048,
+    reasoning_effort: str | None = None,
+    breaker: PrimaryBreaker | None = None,
+) -> tuple[BaseModel, str]:
+    """
+    Structured call with the same failover as call_text: if the primary model
+    raises (API error, or unusable output after retries), try the fallback model.
+    Returns (parsed, model_that_served_it). Raises only if every model fails.
+    """
+    models = [model] + ([fallback_model] if fallback_model and fallback_model != model else [])
+    if breaker is not None and breaker.open and len(models) > 1:
+        models = models[1:]
+    last_exc: Exception | None = None
+
+    for m in models:
+        is_fallback = m != model
+        try:
+            parsed = call_structured(
+                db=db, step=step, model=m, system=system, user_prompt=user_prompt, schema=schema,
+                max_tokens=max_tokens, reasoning_effort=None if is_fallback else reasoning_effort,
+                ok_status="degraded" if is_fallback else "ok",
+                ok_detail=f"served by fallback model {m}" if is_fallback else None,
+            )
+            return parsed, m
+        except (*API_ERRORS, LLMOutputError) as exc:
+            logger.warning("%s failed on %s: %s", step, m, exc)
+            if not is_fallback and breaker is not None:
+                breaker.record_failure()
+            last_exc = exc
+
+    raise last_exc or LLMOutputError("no model produced output")
 
 
 def call_text(db: Session, step: str, model: str, system: str, user_prompt: str,

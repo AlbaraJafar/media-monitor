@@ -1,0 +1,25 @@
+{
+  "name": "03 - Error Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "notes": "Notify on-call (Slack/email) with the failed workflow name and error message. Configure credential in n8n UI."
+      },
+      "name": "Notify On-Call",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [460, 300]
+    }
+  ],
+  "connections": {
+    "Error Trigger": { "main": [[{ "node": "Notify On-Call", "type": "main", "index": 0 }]] }
+  },
+  "_note": "Set this workflow as the 'Error Workflow' in the settings of workflows 01 and 02 so failures page the on-call analyst instead of failing silently."
+}

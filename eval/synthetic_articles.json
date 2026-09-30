@@ -1,0 +1,119 @@
+[
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/1",
+    "title": "Kingdom's Tourism Sector Reports Record Visitor Numbers in Q3",
+    "language": "en",
+    "clean_text": "The Kingdom's tourism sector welcomed over 9 million international visitors in the third quarter, a 14% increase year-on-year, according to figures released by the Destination Development Authority. Officials attributed the growth to expanded e-visa access and new direct flight routes from Europe and Southeast Asia. The Authority's spokesperson said the figures put the Kingdom on track to meet its 2030 visitor targets ahead of schedule. Hotel occupancy in major destination cities averaged 78% for the quarter, up from 71% a year earlier."
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/2",
+    "title": "New Direct Flight Route Announced Between Riyadh and Singapore",
+    "language": "en",
+    "clean_text": "A national carrier has announced a new direct route connecting Riyadh to Singapore starting next quarter, with four weekly flights planned initially. The route is expected to boost visitor arrivals from Southeast Asian markets, a segment the Destination Development Authority has identified as a priority growth area. Aviation officials said the route received expedited approval under the Kingdom's open-skies expansion policy introduced last year."
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/3",
+    "title": "Flagship Coastal Giga-Project Reaches Construction Milestone",
+    "language": "en",
+    "clean_text": "The Red Sea coastal development project has completed its first major resort cluster, with the initial phase set to welcome guests within the year. Project officials said the milestone keeps the development on schedule despite earlier reports of supply-chain delays. The project is central to the Kingdom's strategy to diversify its tourism offering beyond religious and cultural tourism into luxury and eco-tourism segments."
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/4",
+    "title": "Mountain Destination Giga-Project Delays Phase Two Opening",
+    "language": "en",
+    "clean_text": "Developers of a major mountain tourism destination in the Kingdom confirmed that the project's second phase, originally slated to open this winter, has been pushed back to next year. A project spokesperson cited the need for additional environmental impact assessments around the ski infrastructure. Analysts noted the delay is the second postponement for this phase and questioned whether the project's original 2027 completion target remains realistic."
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/5",
+    "title": "Kingdom Expands E-Visa Eligibility to Six Additional Countries",
+    "language": "en",
+    "clean_text": "The Ministry of Interior announced that citizens of six additional countries are now eligible for the Kingdom's e-visa tourism program, effective immediately. The expansion is part of a broader push to simplify entry procedures ahead of the peak winter tourism season. Processing times for e-visa applications now average under 48 hours, down from a reported 5 days when the program launched."
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/6",
+    "title": "Airport Authority Warns of Longer Wait Times During Peak Season",
+    "language": "en",
+    "clean_text": "The Kingdom's airport authority issued an advisory warning travelers of longer immigration processing times at major international airports during the upcoming peak season, citing a sharp rise in passenger volume. The authority said additional immigration counters and staff are being deployed, but advised visitors to allow extra time. The advisory follows several social media complaints last month about wait times exceeding two hours at one major hub."
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/7",
+    "title": "Tour Operator Group Alleges Unsafe Conditions at Desert Camp Site",
+    "language": "en",
+    "clean_text": "An international tour operator association has raised concerns over safety conditions at a popular desert camping destination in the Kingdom, citing two incidents this month involving structural failures of temporary accommodation during high winds. The association called for urgent safety inspections before the peak season. The Destination Development Authority has not yet issued a public response. Several affected tourists posted accounts of the incidents on social media, and at least one described it as 'terrifying' and said no staff were present at the time.",
+    "force_high_risk_note": "deliberate high-risk item for alert-path demo"
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/8",
+    "title": "Viral Video Alleges Mistreatment of Tourists at Heritage Site Checkpoint",
+    "language": "en",
+    "clean_text": "A video circulating widely on social media purports to show tourists being turned away and treated rudely by security staff at a major heritage site entrance, sparking criticism from several travel influencers. The video, viewed over 2 million times in 24 hours, has prompted calls for an official response. The heritage site's management has not commented publicly. Local media outlets have begun picking up the story, and at least one major international outlet has requested comment from the Destination Development Authority.",
+    "force_high_risk_note": "deliberate high-risk item for alert-path demo"
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/9",
+    "title": "Environmental Group Criticizes Coastal Project Over Coral Reef Impact",
+    "language": "en",
+    "clean_text": "An environmental advocacy organization released a report this week alleging that construction activity at the Red Sea coastal development has damaged coral reef areas near the main resort cluster, contradicting the project's public sustainability commitments. Project officials disputed the findings, saying independent environmental monitoring continues throughout construction. The report has been shared widely among environmental journalists and could draw further scrutiny ahead of the resort's public opening.",
+    "force_high_risk_note": "deliberate high-risk item for alert-path demo"
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/10",
+    "title": "Domestic Tourism Campaign Drives Local Visitor Growth",
+    "language": "en",
+    "clean_text": "A government-backed domestic tourism campaign has contributed to a 22% rise in local visitor spending at major heritage and cultural sites over the past six months, according to newly released figures. The campaign, which offers discounted family packages during school holidays, is part of a broader strategy to diversify the tourism sector's revenue base beyond international arrivals."
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/11",
+    "title": "ارتفاع أعداد السياح الدوليين إلى المملكة بنسبة 14% خلال الربع الثالث",
+    "language": "ar",
+    "clean_text": "أعلنت الهيئة العامة للسياحة أن عدد السياح الدوليين الذين زاروا المملكة خلال الربع الثالث تجاوز 9 ملايين زائر، بزيادة 14% مقارنة بالعام الماضي. وأرجع المتحدث الرسمي باسم الهيئة النمو إلى توسع برنامج التأشيرة الإلكترونية وافتتاح خطوط طيران مباشرة جديدة من أوروبا وجنوب شرق آسيا."
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/12",
+    "title": "انتقادات واسعة بسبب فيديو يزعم سوء معاملة سياح عند أحد المواقع التراثية",
+    "language": "ar",
+    "clean_text": "انتشر مقطع فيديو على نطاق واسع يزعم أنه يظهر رفض دخول سياح أجانب ومعاملتهم بفظاظة من قبل موظفي أمن عند أحد المواقع التراثية الشهيرة، مما أثار انتقادات واسعة من مؤثرين في مجال السياحة. ولم تصدر الجهات المعنية أي تعليق رسمي حتى الآن.",
+    "force_high_risk_note": "deliberate high-risk Arabic item for alert-path demo"
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/13",
+    "title": "Aviation Regulator Streamlines Cargo and Charter Flight Approvals",
+    "language": "en",
+    "clean_text": "The General Authority of Civil Aviation announced simplified approval procedures for charter and cargo flight operators, cutting average processing time from 10 days to 3. The change is expected to benefit tour operators running seasonal charter services into secondary destination cities, supporting the Kingdom's push to diversify arrival points beyond the two main international hubs."
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/14",
+    "title": "Heritage Site Visitor Cap Introduced to Manage Overcrowding",
+    "language": "en",
+    "clean_text": "Authorities managing one of the Kingdom's most-visited heritage sites introduced a daily visitor cap and timed-entry ticketing system, aiming to reduce overcrowding reported during recent peak periods. Early visitor feedback collected by site management has been largely positive, though some tour operators said the new booking system needs clearer guidance for group bookings."
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/15",
+    "title": "Tourism Investment Forum to Convene Regional Developers Next Month",
+    "language": "en",
+    "clean_text": "The Destination Development Authority confirmed it will host a regional investment forum next month, bringing together developers, hoteliers, and aviation partners to discuss upcoming giga-project opportunities. Officials said the forum will include site visits to the coastal and mountain destination projects, framing the events as evidence of continued investor confidence despite recent schedule adjustments on some projects."
+  },
+  {
+    "source": "Synthetic Demo Data",
+    "url": "https://synthetic.local/articles/16",
+    "title": "Consumer Complaints Rise Over Tour Operator Refund Practices",
+    "language": "en",
+    "clean_text": "The Kingdom's consumer protection authorities said they have received a growing number of complaints regarding refund practices among a handful of licensed tour operators following cancellations. Officials said they are reviewing the licenses of operators with the highest complaint volumes but have not named specific companies. The Destination Development Authority said it takes visitor experience concerns seriously and is coordinating with the regulator on the review.",
+    "force_high_risk_note": "moderate risk item, useful for testing priority calibration"
+  }
+]

@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.DS_Store
+
+# Local backups of the review sheet (the 2026-09-30 one carries a blanket
+# 'reviewed' stamp that doesn't reflect the actual review — never commit it)
+eval/gold_review.backup-*.csv

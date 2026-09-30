@@ -1,0 +1,75 @@
+{
+  "name": "01 - Ingest and Classify",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 5 }]
+        }
+      },
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/ingest",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "name": "Call /ingest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/classify",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "name": "Call /classify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            { "value1": "={{$json.high_risk_flagged}}", "operation": "larger", "value2": 0 }
+          ]
+        }
+      },
+      "name": "Any High Risk?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://api:8000/alerts/pending",
+        "options": {}
+      },
+      "name": "Get Pending Alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 220]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": { "main": [[{ "node": "Call /ingest", "type": "main", "index": 0 }]] },
+    "Call /ingest": { "main": [[{ "node": "Call /classify", "type": "main", "index": 0 }]] },
+    "Call /classify": { "main": [[{ "node": "Any High Risk?", "type": "main", "index": 0 }]] },
+    "Any High Risk?": { "main": [[{ "node": "Get Pending Alerts", "type": "main", "index": 0 }], []] }
+  },
+  "_note": "NOTE: chain 'Get Pending Alerts' output into a Slack node (Post Message) per alert item, then POST /alerts/{id}/ack once posted. Add your own Slack credential in the n8n UI - not exported here for security."
+}

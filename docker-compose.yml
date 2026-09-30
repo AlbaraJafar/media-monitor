@@ -1,0 +1,85 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: mm_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mm
+      POSTGRES_PASSWORD: mm_local_password
+      POSTGRES_DB: media_monitor
+    ports:
+      - "127.0.0.1:5432:5432"   # loopback only — never expose the DB on the LAN
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mm -d media_monitor"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mm_api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://mm:mm_local_password@db:5432/media_monitor
+      HF_HOME: /models
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./scripts:/app/scripts
+      - ./eval:/app/eval
+      # embedding model weights (~2GB) persist across rebuilds instead of re-downloading
+      - hf_models:/models
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  adminer:
+    image: adminer:4.8.1
+    container_name: mm_adminer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - db
+    # Browse Postgres at http://localhost:8080
+    # System: PostgreSQL | Server: db | Username: mm | Password: mm_local_password | Database: media_monitor
+
+  n8n:
+    image: n8nio/n8n:2.40.7   # pinned: the exported workflow JSON targets this version
+    container_name: mm_n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      # n8n >= 1.0 removed basic auth; you create an owner account on first visit.
+      - GENERIC_TIMEZONE=Asia/Riyadh
+      - TZ=Asia/Riyadh
+      - N8N_SECURE_COOKIE=false
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      # passed through so HTTP nodes can read it as {{$env.MM_API_KEY}}
+      - MM_API_KEY=${API_KEY}
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n:/workflows:ro
+    depends_on:
+      - api
+
+volumes:
+  db_data:
+  n8n_data:
+  hf_models:

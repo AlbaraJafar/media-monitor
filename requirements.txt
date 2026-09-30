@@ -1,0 +1,24 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+sqlalchemy==2.0.35
+psycopg[binary]==3.2.2
+pgvector==0.3.4
+httpx==0.27.2
+feedparser==6.0.11
+trafilatura==1.12.2
+langdetect==1.0.9
+# CPU-only torch: the default wheel pulls ~2.5GB of CUDA libs we never use.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.4.1+cpu
+sentence-transformers==3.1.1
+rank-bm25==0.2.2
+numpy==1.26.4
+scikit-learn==1.5.2
+pandas==2.2.3
+tenacity==9.0.0
+anthropic==1.9.0
+openai==3.20.0
+python-dotenv==1.0.1
+tzdata==2024.2

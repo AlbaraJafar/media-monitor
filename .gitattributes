@@ -1,0 +1,2 @@
+# LF everywhere: CRLF breaks Makefile recipes and the SQL/shell files mounted into Linux containers
+* text=auto eol=lf

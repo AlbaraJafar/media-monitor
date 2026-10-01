@@ -1,4 +1,5 @@
 {
+  "id": "mmBriefingAppr02",
   "name": "02 - Briefing Approval and Delivery",
   "nodes": [
     {
@@ -16,20 +17,15 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        240,
-        300
-      ]
+        384,
+        384
+      ],
+      "id": "5702fed8-3b5c-4f80-9b89-2b6ca96cd01a"
     },
     {
       "parameters": {
         "method": "POST",
         "url": "http://api:8000/brief",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{}",
-        "options": {
-          "timeout": 300000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -38,35 +34,110 @@
               "value": "={{ $env.MM_API_KEY }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 300000
         }
       },
       "name": "Generate Draft",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        460,
-        300
-      ]
+        608,
+        384
+      ],
+      "id": "28dced8e-1934-4061-8f4d-d91014cd3f2f"
     },
     {
       "parameters": {
-        "notes": "Send-and-wait node: post the draft (content_md) to the named analyst in Slack, wait for approval/edit reply. Configure Slack credential in n8n UI. On approval, call POST /brief/{{briefing_id}}/approve with approved_by set to the analyst's name."
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C5X8PMAQ2",
+          "mode": "id"
+        },
+        "message": "={{ $json.slack_summary }}",
+        "approvalOptions": {
+          "values": {}
+        },
+        "captureResponder": true,
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 120,
+              "resumeUnit": "minutes"
+            }
+          }
+        }
       },
       "name": "Send For Approval (Slack Send-and-Wait)",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
       "position": [
-        680,
-        300
+        832,
+        384
+      ],
+      "id": "d3cb9d44-c575-4ccb-949f-dc5265a3a095",
+      "webhookId": "c57cb79d-34d3-44d3-ade7-92b4493acea3",
+      "credentials": {
+        "slackApi": {
+          "id": "75TRkaqNm6DBlkaE",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cda761b9-2752-4a73-b4b7-06f9917ad795",
+              "leftValue": "={{ $json.data?.approved === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "19c904e1-8f79-4e33-a172-62ff23161c1b",
+              "leftValue": "={{ $json.data?.responder?.id ?? '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Approved by a Named Analyst?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "id": "f3329136-f93c-4a96-9e45-2ceedde34759",
+      "position": [
+        1056,
+        384
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://api:8000/brief/{{$json.briefing_id}}/deliver",
-        "options": {
-          "timeout": 30000
-        },
+        "url": "=http://api:8000/brief/{{ $('Generate Draft').first().json.briefing_id }}/approve",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -75,27 +146,68 @@
               "value": "={{ $env.MM_API_KEY }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ approved_by: 'slack:' + ($json.data.responder.email || $json.data.responder.name || $json.data.responder.username || $json.data.responder.id) + ' (' + $json.data.responder.id + ')' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Record Approval (POST /approve)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "id": "28eb5650-8d81-405b-a6dd-75d611e9cd05",
+      "position": [
+        1280,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://api:8000/brief/{{$json.briefing_id}}/deliver",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.MM_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
         }
       },
       "name": "Mark Delivered + Send to DG Office",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        900,
-        300
-      ]
+        1504,
+        304
+      ],
+      "id": "5c5d9fca-01f9-4403-a119-a2ce599dfdb8"
     },
     {
       "parameters": {
-        "notes": "No approval reply within timeout window -> escalate to backup analyst. Configure timeout on the Slack send-and-wait node."
+        "otherOptions": {}
       },
       "name": "Escalate To Backup Analyst",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
       "position": [
-        680,
-        480
-      ]
+        1280,
+        496
+      ],
+      "id": "ca0e920e-23f8-4b65-b6fb-bf0d8f2f5a6b",
+      "webhookId": "d6e72fac-06ba-4434-9aae-75b427a639a0",
+      "credentials": {
+        "slackApi": {
+          "id": "75TRkaqNm6DBlkaE",
+          "name": "Slack account"
+        }
+      }
     }
   ],
   "connections": {
@@ -125,6 +237,29 @@
       "main": [
         [
           {
+            "node": "Approved by a Named Analyst?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved by a Named Analyst?": {
+      "main": [
+        [
+          {
+            "node": "Record Approval (POST /approve)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Record Approval (POST /approve)": {
+      "main": [
+        [
+          {
             "node": "Mark Delivered + Send to DG Office",
             "type": "main",
             "index": 0
@@ -133,5 +268,10 @@
       ]
     }
   },
-  "_note": "Placeholder Slack nodes - add real Slack OAuth credential in the n8n UI before running. Timeout branch to 'Escalate To Backup Analyst' needs wiring once the send-and-wait node is configured with real credentials. AUTH: every HTTP node sends X-API-Key from the MM_API_KEY env var, which docker-compose sets from API_KEY in .env. For production, move it into an n8n Header Auth credential so the secret lives in n8n's encrypted credential store."
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "mmErrorWorkflw03"
+  },
+  "active": false,
+  "_note": "Slack message = the API's slack_summary (plain text, capped under Slack's 3,000-char block limit) with a signed, expiring link to the full briefing. Approval settings are as configured in the UI (single Approve button, captureResponder on, 120-min wait). 'Approved by a Named Analyst?' lets the run continue only when the click came back with a captured Slack responder; a timeout or an uncaptured click stops before /approve, so nothing is ever approved without a name for the audit trail. captureResponder needs Slack to reach n8n: set the Slack app's Interactivity Request URL to <public n8n URL>/webhook-waiting-slack. 'Escalate To Backup Analyst' is an unconfigured placeholder, left unconnected. AUTH: HTTP nodes send X-API-Key from $env.MM_API_KEY (set by compose from API_KEY)."
 }

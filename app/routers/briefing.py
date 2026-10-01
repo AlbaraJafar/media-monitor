@@ -8,6 +8,7 @@ from app.db import get_db
 from app.models import Briefing
 from app.schemas import BriefingRequest, BriefingResponse
 from app.services.briefing import run_briefing
+from app.services.briefing_render import summary_fields
 
 router = APIRouter()
 
@@ -21,6 +22,7 @@ def create_briefing(request: BriefingRequest, db: Session = Depends(get_db)):
         content_md=briefing.content_md,
         citations=briefing.citations_json,
         unverified_claim_count=len(briefing.unverified_claims),
+        **summary_fields(briefing),
     )
 
 
@@ -35,6 +37,7 @@ def get_briefing(briefing_id: int, db: Session = Depends(get_db)):
         "unverified_claim_count": len(briefing.unverified_claims),
         "approved_by": briefing.approved_by, "approved_at": briefing.approved_at,
         "delivered_at": briefing.delivered_at,
+        **summary_fields(briefing),
     }
 
 

@@ -80,10 +80,16 @@ class Citation(BaseModel):
 
 class BriefingResponse(BaseModel):
     briefing_id: int
+    briefing_date: date
     status: str
     content_md: str
     citations: list[Citation]
     unverified_claim_count: int
+    verification: str          # passed | flagged | not_run | n/a (degraded)
+    themes_covered: int
+    sources_cited: int
+    view_url: str              # signed, expiring, read-only link to the full briefing
+    slack_summary: str         # plain text, always under Slack's 3,000-char block limit
 
 
 # ---- Alerts ----

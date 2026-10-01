@@ -1,4 +1,7 @@
+import hashlib
+import hmac
 import secrets
+import time
 
 from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader
@@ -19,3 +22,30 @@ def require_api_key(key: str | None = Security(_api_key_header)) -> None:
         return
     if not key or not secrets.compare_digest(key, settings.api_key):
         raise HTTPException(status_code=401, detail="missing or invalid X-API-Key")
+
+
+# ---- Signed, expiring, read-only links to one briefing --------------------------
+# A browser can't send X-API-Key, so the Slack "read the full briefing" link carries
+# an HMAC over (briefing id, expiry) instead. It opens only that briefing, only for
+# reading, and stops working after briefing_link_ttl_hours; the API key itself never
+# appears in a URL.
+
+def _briefing_sig(briefing_id: int, expires: int) -> str:
+    msg = f"briefing-view:{briefing_id}:{expires}".encode()
+    return hmac.new(settings.api_key.encode(), msg, hashlib.sha256).hexdigest()
+
+
+def sign_briefing_link(briefing_id: int) -> str:
+    expires = int(time.time()) + settings.briefing_link_ttl_hours * 3600
+    base = settings.public_base_url.rstrip("/")
+    # Path segments, not a query string: n8n HTML-escapes the Slack message, and an
+    # "&" in the URL would come out as "&amp;" and break the link.
+    return f"{base}/brief/{briefing_id}/view/{expires}/{_briefing_sig(briefing_id, expires)}"
+
+
+def verify_briefing_link(briefing_id: int, expires: int, sig: str) -> bool:
+    if not settings.api_key:
+        return True  # auth disabled (local tinkering), same as require_api_key
+    if expires < time.time():
+        return False
+    return secrets.compare_digest(sig, _briefing_sig(briefing_id, expires))

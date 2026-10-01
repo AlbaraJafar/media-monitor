@@ -1,4 +1,5 @@
 {
+  "id": "mmErrorWorkflw03",
   "name": "03 - Error Workflow",
   "nodes": [
     {
@@ -6,20 +7,58 @@
       "name": "Error Trigger",
       "type": "n8n-nodes-base.errorTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ],
+      "id": "8e605d11-34f1-4719-a5fa-e6c71789a76e"
     },
     {
       "parameters": {
-        "notes": "Notify on-call (Slack/email) with the failed workflow name and error message. Configure credential in n8n UI."
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C5X8PMAQ2",
+          "mode": "id"
+        },
+        "text": "=:rotating_light: n8n workflow failed: *{{ $json.workflow.name }}*\nFailed node: {{ $json.execution.lastNodeExecuted || 'unknown' }}\nError: {{ $json.execution.error.message }}\nExecution: {{ $json.execution.url || '(manual run, no URL)' }}\nIf this is /classify returning 503, BOTH LLM vendors are failing: risk alerts are stopped.",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
       },
       "name": "Notify On-Call",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [460, 300]
+      "position": [
+        480,
+        300
+      ],
+      "id": "6cee4449-9e15-40ee-b974-4ab24d2e47e1",
+      "webhookId": "71ec8b0c-8841-4ccc-ba02-0b65f55e44f1",
+      "credentials": {
+        "slackApi": {
+          "id": "75TRkaqNm6DBlkaE",
+          "name": "Slack account"
+        }
+      }
     }
   ],
   "connections": {
-    "Error Trigger": { "main": [[{ "node": "Notify On-Call", "type": "main", "index": 0 }]] }
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Notify On-Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "_note": "Set this workflow as the 'Error Workflow' in the settings of workflows 01 and 02 so failures page the on-call analyst instead of failing silently."
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "_note": "Error workflow: pages on-call in Slack when a workflow that names this one as its Error Workflow fails (01 and 02 do). Posts to the approvals channel by default; point 'Notify On-Call' at the on-call channel if it differs. An Error Trigger only fires for OTHER workflows, which is why this must be its own workflow, not a node on a shared canvas."
 }

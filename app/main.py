@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI
 from sqlalchemy import text
 
 from app.db import engine
-from app.routers import alerts, ask, briefing, classify, ingest, ops
+from app.routers import alerts, ask, briefing, briefing_view, classify, ingest, ops
 from app.security import require_api_key
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -40,6 +40,8 @@ app.include_router(briefing.router, prefix="/brief", tags=["briefing"], dependen
 app.include_router(alerts.router, prefix="/alerts", tags=["alerts"], dependencies=auth)
 app.include_router(ask.router, prefix="/ask", tags=["ask"], dependencies=auth)
 app.include_router(ops.router, tags=["ops"], dependencies=auth)
+# Browser view opened from the Slack link: guarded by a signed, expiring URL, not the API key.
+app.include_router(briefing_view.router)
 
 
 @app.get("/health")

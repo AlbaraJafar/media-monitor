@@ -1,4 +1,5 @@
 {
+  "id": "mmIngestClassif1",
   "name": "01 - Ingest and Classify",
   "nodes": [
     {
@@ -79,18 +80,30 @@
     {
       "parameters": {
         "conditions": {
-          "number": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
             {
-              "value1": "={{$json.high_risk_flagged}}",
-              "operation": "larger",
-              "value2": 0
+              "id": "2fe22747-0a37-4e73-92ae-0158ee6201c4",
+              "leftValue": "={{ $json.high_risk_flagged }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "name": "Any High Risk?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
+      "typeVersion": 2.2,
       "position": [
         900,
         300
@@ -169,5 +182,10 @@
       ]
     }
   },
-  "_note": "NOTE: chain 'Get Pending Alerts' output into a Slack node (Post Message) per alert item, then POST /alerts/{id}/ack once posted. Add your own Slack credential in the n8n UI - not exported here for security. AUTH: every HTTP node sends X-API-Key from the MM_API_KEY env var, which docker-compose sets from API_KEY in .env. For production, move it into an n8n Header Auth credential so the secret lives in n8n's encrypted credential store."
+  "_note": "NOTE: chain 'Get Pending Alerts' output into a Slack node (Post Message) per alert item, then POST /alerts/{id}/ack once posted. Add your own Slack credential in the n8n UI - not exported here for security. AUTH: every HTTP node sends X-API-Key from the MM_API_KEY env var, which docker-compose sets from API_KEY in .env. For production, move it into an n8n Header Auth credential so the secret lives in n8n's encrypted credential store.",
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "mmErrorWorkflw03"
+  },
+  "active": false
 }

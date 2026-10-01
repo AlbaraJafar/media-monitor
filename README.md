@@ -26,8 +26,31 @@ Then, either:
   coverage is rare in any given window, so this is the only way to show the alert
   path firing on demand, and the fallback if a live feed is down during the presentation.
 - **Via n8n:** open http://localhost:5678 (create the owner account on first visit —
-  n8n no longer has a default login), import the workflows from `/n8n/*.json`, and
-  trigger the Ingest workflow manually.
+  n8n no longer has a default login). Import the four workflows, either in the UI from
+  `/n8n/*.json` or from the CLI (each file has a fixed id, so re-importing updates
+  rather than duplicates):
+  ```bash
+  docker compose exec n8n n8n import:workflow --input=/workflows/03-error-workflow.json
+  ```
+  | Workflow | What it does |
+  |---|---|
+  | 01 - Ingest and Classify | every 5 min: `/ingest` → `/classify` → pending risk alerts |
+  | 02 - Briefing Approval and Delivery | 05:30: draft → Slack approval by a named analyst → `/approve` → `/deliver` → post the approved briefing to the DG office channel |
+  | 03 - Error Workflow | pages on-call in Slack when 01, 02 or 04 fails |
+  | 04 - Analyst Q&A | chat over the archive (see below) |
+
+  The Slack messages carry a length-bounded summary plus a signed, expiring link to
+  the full briefing (`/brief/{id}/view/...`), because Slack rejects blocks over 3,000
+  characters. Select your Slack credential on the Slack nodes after a fresh import,
+  and invite the Slack app to both channels.
+- **Ask the archive in plain language (n8n chat):** activate *04 - Analyst Q&A* and
+  open the chat URL shown on its *Analyst Chat* node (sign in with your n8n account).
+  Each question goes to `POST /ask` (hybrid BM25 + embedding retrieval over the
+  archive, answer grounded only in retrieved articles), and the reply lists the
+  articles the answer cites, with links. It says so when nothing relevant was found
+  rather than guessing. Known limitation: retrieval favours articles in the
+  question's own language, so an Arabic question can miss coverage that exists only
+  in English (and vice versa) — ask in the language the coverage is likely in.
 - **Browse the database directly:** http://localhost:8080 (Adminer) — System:
   PostgreSQL, Server: `db`, Username: `mm`, Password: `mm_local_password`,
   Database: `media_monitor`. A local debugging convenience, bound to localhost only;
@@ -61,10 +84,12 @@ near-duplicate clustering, 4-theme classification with relevance gate, sentiment
 priority, risk score and justification (schema-enforced structured output), a cited
 briefing draft with a **claim-level verifier** that checks every claim against its
 cited source and fails closed, a tested **cross-vendor model fallback** on both the
-alert path and the briefing, and a no-LLM DEGRADED briefing, n8n approval workflow (send-and-wait to a named analyst) and
-scheduled delivery, a 15-minute risk-alert path, a hybrid-retrieval (BM25 +
-embeddings) Q&A endpoint, per-call cost/latency logging, and an evaluation harness
-that compares models side by side.
+alert path and the briefing, and a no-LLM DEGRADED briefing, n8n approval workflow
+(send-and-wait to a named analyst, approver recorded) and delivery of the approved
+briefing to the DG office Slack channel, a 15-minute risk-alert path, a
+hybrid-retrieval (BM25 + embeddings) Q&A endpoint with an n8n chat front end,
+per-call cost/latency logging, and an evaluation harness that compares models side
+by side.
 
 **Deliberately not built** (see architecture note for the intended design):
 WhatsApp delivery, a polished front end, multi-user auth (a shared API key stands in
@@ -110,7 +135,7 @@ eval/
   run_eval.py       alert recall/precision, relevance, multi-label theme F1, by language
   compare_models.py same prompt, several models: quality, cost, latency side by side
   synthetic_articles.json   demo fixtures
-n8n/                exported workflow JSON: ingest+alert, briefing-approval, error
+n8n/                workflow JSON: 01 ingest+alert, 02 briefing approval+delivery, 03 error, 04 analyst Q&A chat
 scripts/init_db.sql schema (articles, classifications, alerts, briefings, runs, gold_labels)
 ```
 

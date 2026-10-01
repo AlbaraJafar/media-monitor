@@ -47,7 +47,8 @@ class Settings(BaseSettings):
     briefing_max_articles: int = 40
     # Base URL the analyst's browser uses to open a briefing from the Slack link.
     public_base_url: str = "http://localhost:8000"
-    briefing_link_ttl_hours: int = 72
+    briefing_link_ttl_hours: int = 72            # approval link: only needed until someone approves
+    delivery_link_ttl_hours: int = 720           # DG office copy: read back from channel history for ~30 days
 
     # Embeddings
     embedding_model_name: str = "intfloat/multilingual-e5-large"

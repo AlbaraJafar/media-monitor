@@ -8,7 +8,7 @@ from app.db import get_db
 from app.models import Briefing
 from app.schemas import BriefingRequest, BriefingResponse
 from app.services.briefing import run_briefing
-from app.services.briefing_render import summary_fields
+from app.services.briefing_render import delivery_fields, summary_fields
 
 router = APIRouter()
 
@@ -75,5 +75,8 @@ def mark_delivered(briefing_id: int, db: Session = Depends(get_db)):
     briefing.status = "delivered"
     briefing.delivered_at = datetime.now(timezone.utc)
     db.commit()
+    # The status flip is the technical gate (only an approved briefing gets here);
+    # delivery_summary is what n8n posts to the DG office channel next.
     return {"status": "delivered", "briefing_id": briefing.id, "content_md": briefing.content_md,
-            "approved_by": briefing.approved_by}
+            "approved_by": briefing.approved_by, "delivered_at": briefing.delivered_at,
+            **delivery_fields(briefing)}

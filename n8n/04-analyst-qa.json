@@ -1,0 +1,111 @@
+{
+  "id": "mmAnalystQandA04",
+  "name": "04 - Analyst Q&A",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "mode": "hostedChat",
+        "authentication": "n8nUserAuth",
+        "initialMessages": "Ask a question about the coverage archive, in English or Arabic.\ne.g. \"What did the media say about Riyadh airport this week?\"",
+        "options": {
+          "responseMode": "lastNode",
+          "title": "Media Archive Q&A",
+          "subtitle": "Answers cite the archived articles they come from",
+          "inputPlaceholder": "Ask about the coverage…"
+        }
+      },
+      "name": "Analyst Chat",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "id": "85a772df-6f70-49ef-a33c-f378a38bf75d",
+      "webhookId": "5c1f7b6e-2a43-4d1e-9b8a-6f0e3d2c1a04",
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/ask",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.MM_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ question: $json.chatInput, top_k: 8 }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "name": "Ask the Archive (POST /ask)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "id": "3ee9d089-6c1b-4ccb-9a46-b6753745ced8",
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f89f744d-078b-465b-b3f7-1bfe3024e6ae",
+              "name": "output",
+              "type": "string",
+              "value": "={{ (() => { const cited = $json.sources.filter(s => $json.answer.includes('[A' + s.article_id + ']')); return $json.answer + ($json.found && cited.length ? '\\n\\n**Sources**\\n' + cited.map(s => '- [A' + s.article_id + '] [' + s.title + '](' + s.url + ') — ' + s.source).join('\\n') : ''); })() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Format Reply",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "id": "30c6f50d-5193-459d-88e5-809f3c0354f9",
+      "position": [
+        680,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Analyst Chat": {
+      "main": [
+        [
+          {
+            "node": "Ask the Archive (POST /ask)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask the Archive (POST /ask)": {
+      "main": [
+        [
+          {
+            "node": "Format Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "mmErrorWorkflw03"
+  },
+  "active": false,
+  "_note": "Analyst chat over the archive: n8n-hosted chat page (sign in with an n8n account) -> POST /ask (hybrid BM25 + embedding retrieval, answer grounded in retrieved articles, says so when nothing relevant is found) -> reply with the answer and its sources. Activate, then open the chat URL shown on the 'Analyst Chat' node."
+}

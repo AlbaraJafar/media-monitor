@@ -1,6 +1,7 @@
 {
   "id": "mmBriefingAppr02",
   "name": "02 - Briefing Approval and Delivery",
+  "active": false,
   "nodes": [
     {
       "parameters": {
@@ -180,7 +181,7 @@
           "timeout": 30000
         }
       },
-      "name": "Mark Delivered + Send to DG Office",
+      "name": "Mark Delivered (POST /deliver)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -202,6 +203,34 @@
       ],
       "id": "ca0e920e-23f8-4b65-b6fb-bf0d8f2f5a6b",
       "webhookId": "d6e72fac-06ba-4434-9aae-75b427a639a0",
+      "credentials": {
+        "slackApi": {
+          "id": "75TRkaqNm6DBlkaE",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C5ZN72R0S",
+          "mode": "id"
+        },
+        "text": "={{ $json.delivery_summary }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "name": "Post Approved Briefing to DG Office (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "id": "a350a8dc-8fcd-4264-a4e7-f8a5a55c8093",
+      "position": [
+        1728,
+        304
+      ],
       "credentials": {
         "slackApi": {
           "id": "75TRkaqNm6DBlkaE",
@@ -260,7 +289,18 @@
       "main": [
         [
           {
-            "node": "Mark Delivered + Send to DG Office",
+            "node": "Mark Delivered (POST /deliver)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Delivered (POST /deliver)": {
+      "main": [
+        [
+          {
+            "node": "Post Approved Briefing to DG Office (Slack)",
             "type": "main",
             "index": 0
           }
@@ -270,8 +310,17 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "errorWorkflow": "mmErrorWorkflw03"
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "mmErrorWorkflw03",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
-  "active": false,
-  "_note": "Slack message = the API's slack_summary (plain text, capped under Slack's 3,000-char block limit) with a signed, expiring link to the full briefing. Approval settings are as configured in the UI (single Approve button, captureResponder on, 120-min wait). 'Approved by a Named Analyst?' lets the run continue only when the click came back with a captured Slack responder; a timeout or an uncaptured click stops before /approve, so nothing is ever approved without a name for the audit trail. captureResponder needs Slack to reach n8n: set the Slack app's Interactivity Request URL to <public n8n URL>/webhook-waiting-slack. 'Escalate To Backup Analyst' is an unconfigured placeholder, left unconnected. AUTH: HTTP nodes send X-API-Key from $env.MM_API_KEY (set by compose from API_KEY)."
+  "nodeGroups": [],
+  "sourceWorkflowId": null,
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  },
+  "_note": "DELIVERY: after /deliver (the API's approved-only gate) the approved briefing is posted to the DG office channel as delivery_summary — same 3,000-char-bounded renderer, 30-day signed /view link. The Slack app must be a member of that channel."
 }

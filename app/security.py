@@ -35,8 +35,8 @@ def _briefing_sig(briefing_id: int, expires: int) -> str:
     return hmac.new(settings.api_key.encode(), msg, hashlib.sha256).hexdigest()
 
 
-def sign_briefing_link(briefing_id: int) -> str:
-    expires = int(time.time()) + settings.briefing_link_ttl_hours * 3600
+def sign_briefing_link(briefing_id: int, ttl_hours: int | None = None) -> str:
+    expires = int(time.time()) + (ttl_hours or settings.briefing_link_ttl_hours) * 3600
     base = settings.public_base_url.rstrip("/")
     # Path segments, not a query string: n8n HTML-escapes the Slack message, and an
     # "&" in the URL would come out as "&amp;" and break the link.

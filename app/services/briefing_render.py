@@ -13,6 +13,7 @@ Two views of one briefing, both derived from the stored content_md:
 import html
 import re
 
+from app.config import settings
 from app.models import Briefing
 from app.security import sign_briefing_link
 
@@ -46,8 +47,17 @@ def _trim(text: str, budget: int) -> str:
     return cut.rstrip() + "\n… (continued in the full briefing)"
 
 
+def is_degraded(b: Briefing) -> bool:
+    """
+    From the content, not the status: approval moves a degraded briefing to
+    approved/delivered, and the DG office copy must still say it is degraded
+    rather than "all claims verified".
+    """
+    return b.status == "degraded" or "DEGRADED BRIEFING" in (b.draft_md or b.content_md or "")[:300]
+
+
 def verification_status(b: Briefing) -> str:
-    if b.status == "degraded":
+    if is_degraded(b):
         return "n/a"
     claims = b.unverified_claims or []
     if any(c.get("claim") == "(verifier did not run)" for c in claims):
@@ -63,21 +73,33 @@ def sources_cited(b: Briefing) -> int:
     return len(set(_CITE.findall(b.content_md)))
 
 
-def slack_summary(b: Briefing, view_url: str) -> str:
+def slack_summary(b: Briefing, view_url: str, purpose: str = "approval") -> str:
+    """purpose="approval": the request to the analyst. purpose="delivery": the approved copy for the DG office."""
     verification = verification_status(b)
-    verdict = {
-        "passed": "All claims verified against their sources.",
-        "flagged": f"{len(b.unverified_claims)} claim(s) could NOT be verified against their source — check them in the full briefing.",
-        "not_run": "Claim verification did not run — check every cited claim before approving.",
-        "n/a": "DEGRADED briefing (no AI summary) — manual review required.",
-    }[verification]
-
-    header = f"Daily Media Briefing — {b.briefing_date:%Y-%m-%d}   [{b.status.upper()}]"
+    n_flagged = len(b.unverified_claims or [])
+    if purpose == "delivery":
+        verdict = {
+            "passed": "All claims were verified against their sources.",
+            "flagged": f"Approved with {n_flagged} claim(s) the verifier could not confirm — see the full briefing.",
+            "not_run": "Approved without automatic claim verification (the verifier did not run).",
+            "n/a": "Approved DEGRADED briefing (no AI summary).",
+        }[verification]
+        when = f" at {b.approved_at:%H:%M} UTC" if b.approved_at else ""
+        header = f"Daily Media Briefing — {b.briefing_date:%Y-%m-%d}\nApproved by {b.approved_by or 'unknown'}{when}"
+        footer = f"Full briefing with sources:\n{view_url}"
+    else:
+        verdict = {
+            "passed": "All claims verified against their sources.",
+            "flagged": f"{n_flagged} claim(s) could NOT be verified against their source — check them in the full briefing.",
+            "not_run": "Claim verification did not run — check every cited claim before approving.",
+            "n/a": "DEGRADED briefing (no AI summary) — manual review required.",
+        }[verification]
+        header = f"Daily Media Briefing — {b.briefing_date:%Y-%m-%d}   [{b.status.upper()}]"
+        footer = f"Read the full briefing before approving:\n{view_url}"
     counts = (f"{themes_covered(b)} themes covered · {sources_cited(b)} sources cited · "
-              f"{len(b.unverified_claims or [])} unverified claims flagged")
-    footer = f"Read the full briefing before approving:\n{view_url}"
+              f"{n_flagged} unverified claims flagged")
 
-    if b.status == "degraded":
+    if is_degraded(b):
         body = _plain(b.content_md.split("\n## ")[0])
     else:
         body = _plain(_section(b.content_md, "Headline Summary")) or "(no headline summary section in this draft)"
@@ -102,6 +124,12 @@ def summary_fields(b: Briefing) -> dict:
         "view_url": view_url,
         "slack_summary": slack_summary(b, view_url),
     }
+
+
+def delivery_fields(b: Briefing) -> dict:
+    """What the DG office channel receives: the approved content, bounded like the approval message."""
+    view_url = sign_briefing_link(b.id, ttl_hours=settings.delivery_link_ttl_hours)
+    return {"view_url": view_url, "delivery_summary": slack_summary(b, view_url, purpose="delivery")}
 
 
 # ------------------------------------------------------------------ HTML view --

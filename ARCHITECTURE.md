@@ -14,9 +14,11 @@ n8n (schedule, 5 min) → POST /classify → per-story structured LLM call (rele
 n8n (on high risk)    → GET /alerts/pending → notify on-call analyst (Slack) → ack
 n8n (schedule, 05:30 daily) → POST /brief → draft (LLM, cited) → verify (LLM,
                                           claim-by-claim against source) → Postgres
-                                       → send-and-wait approval to named analyst
-                                       → on approve → POST /brief/{id}/deliver → Slack/email
-Analyst → n8n chat trigger → POST /ask → hybrid retrieval (BM25 + embeddings) → answer
+                                       → Slack send-and-wait approval (summary + signed link)
+                                       → approved by a named analyst → POST /approve
+                                       → POST /deliver → post approved briefing to DG office channel
+Analyst → n8n hosted chat (n8n login) → POST /ask → hybrid retrieval (BM25 + embeddings)
+                                       → grounded answer + the articles it cites
 ```
 
 Every LLM call goes through `app/services/llm.py`, which picks the vendor from the
@@ -192,5 +194,10 @@ for improving the gold set and, over time, the prompts.
    ingesting one internal document type under it on an in-Kingdom endpoint.
 5. Shadow-mode run against the manual process to measure real agreement
    before cutover.
-6. Prompt-caching and batch-API use to reduce cost further at scale; LLM
+6. Cross-language retrieval for `/ask`. Measured on 1 October 2026: the same question
+   about Riyadh airport disruptions found the answer in English and, asked in Arabic,
+   replied that the coverage didn't mention it — keyword matching only finds Arabic
+   articles and cross-language embedding scores rank below same-language ones. Fix:
+   translate the question (one cheap LLM call) and retrieve in both languages.
+7. Prompt-caching and batch-API use to reduce cost further at scale; LLM
    confirmation for cross-language duplicate pairs, which embeddings alone miss.

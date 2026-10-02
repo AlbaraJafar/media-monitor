@@ -1,4 +1,4 @@
-.PHONY: up down logs ingest classify brief brief-synthetic seed-reset alerts costs latency eval demo demo-safe seed reset
+.PHONY: up down logs wait-ready ingest classify brief brief-synthetic seed-reset alerts costs latency eval demo demo-safe seed reset
 
 -include .env
 API := http://localhost:8000
@@ -21,6 +21,14 @@ reset:  ## wipe the database and start clean (keeps downloaded model weights)
 
 logs:
 	docker compose logs -f api
+
+wait-ready:  ## block until the API is up and the ~2 GB embedding model has loaded (first boot)
+	@echo "Waiting for the API and embedding model (first boot downloads ~2 GB)..."
+	@for i in $$(seq 1 120); do \
+		curl -s $(API)/health | grep -q '"embedder_loaded":true' && echo "Ready." && exit 0; \
+		sleep 5; \
+	done; \
+	echo "Not ready after 10 minutes: check 'make logs'."; exit 1
 
 seed:
 	docker compose exec api python -m scripts.seed_synthetic
@@ -52,8 +60,8 @@ latency:
 eval:
 	docker compose exec api python -m eval.run_eval
 
-demo: ingest classify alerts brief
+demo: wait-ready ingest classify alerts brief
 	@echo "Core loop ran end to end on live feeds. Check n8n at http://localhost:5678 for the approval workflow."
 
-demo-safe: seed-reset classify alerts brief-synthetic
+demo-safe: wait-ready seed-reset classify alerts brief-synthetic
 	@echo "Ran the core loop on synthetic backup data (no live feed dependency)."

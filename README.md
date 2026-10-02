@@ -6,15 +6,28 @@ a cited daily briefing for human approval, raises reputational-risk alerts withi
 
 ## Run it (under 15 minutes)
 
-```bash
-git clone <this-repo> && cd media-monitor
-cp .env.example .env        # add OPENAI_API_KEY (and ANTHROPIC_API_KEY for the fallback), set API_KEY
-make up                      # builds and starts Postgres+pgvector, the API, n8n and Adminer
-```
+Prerequisites: Docker Desktop (running) and `make`. On Windows, install `make` with
+`winget install ezwinports.make`, **then open a new terminal**: the installer adds
+`make` to PATH only for terminals started after it. (Or run the commands in the
+Makefile directly.)
 
-First boot downloads the local embedding model (~2 GB, cached in a Docker volume);
-`GET /health` reports `embedder_loaded: true` when it is ready. On Windows, install
-`make` with `winget install ezwinports.make`, or run the commands in the Makefile directly.
+1. Clone and configure:
+   ```bash
+   git clone <this-repo> && cd media-monitor
+   cp .env.example .env        # add OPENAI_API_KEY (and ANTHROPIC_API_KEY for the fallback), set API_KEY
+   ```
+2. Build and start Postgres+pgvector, the API, n8n and Adminer (first build: ~4 minutes):
+   ```bash
+   make up
+   ```
+   If the build stops with pip reporting `THESE PACKAGES DO NOT MATCH THE HASHES` for
+   `torch`, a large download was cut off on a slow connection. It is not tampering:
+   run `make up` again.
+3. **Wait for the embedding model before running anything else.** First boot downloads
+   it (~2 GB, about a minute on a fast connection; cached in a Docker volume after that):
+   ```bash
+   make wait-ready             # returns when GET /health reports embedder_loaded: true
+   ```
 
 Then, either:
 - **Automated (live feeds):** `make demo` runs ingest → classify → alerts → brief once,

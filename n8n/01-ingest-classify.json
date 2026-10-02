@@ -19,6 +19,18 @@
       "position": [
         240,
         300
+      ],
+      "id": "a6907ad1-d133-4fbf-87ec-428a67c52bc0"
+    },
+    {
+      "parameters": {},
+      "name": "Run Now (manual)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "id": "f8ca9a35-905c-4ad0-830c-b7017b65d273",
+      "position": [
+        240,
+        480
       ]
     },
     {
@@ -47,7 +59,8 @@
       "position": [
         460,
         300
-      ]
+      ],
+      "id": "d66e18d2-3673-48d1-8921-4474db499b33"
     },
     {
       "parameters": {
@@ -75,39 +88,8 @@
       "position": [
         680,
         300
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "2fe22747-0a37-4e73-92ae-0158ee6201c4",
-              "leftValue": "={{ $json.high_risk_flagged }}",
-              "rightValue": 0,
-              "operator": {
-                "type": "number",
-                "operation": "gt"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "name": "Any High Risk?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        900,
-        300
-      ]
+      ],
+      "id": "4839fa20-0148-497b-9cd8-bb7dd1362132"
     },
     {
       "parameters": {
@@ -130,8 +112,83 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
+        900,
+        300
+      ],
+      "id": "a531aef3-9f24-4603-a003-bc8a5fb7f5d3"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Loop Over Alerts",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "id": "95c5c701-62ec-45ea-892b-27c290c62a3e",
+      "position": [
         1120,
-        220
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C5X8PMAQ2",
+          "mode": "id"
+        },
+        "text": "={{ $json.source === 'Synthetic Demo Data' ? '[SYNTHETIC DEMO DATA] ' : '' }}:rotating_light: *Risk alert {{ Number($json.risk_score).toFixed(2) }}* — {{ $json.title }}\nSource: {{ $json.source }}\nWhy: {{ $json.reason }}\n{{ $json.url }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "name": "Post Alert to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "id": "7526c9ba-fcca-45a9-9c4f-a7330fe724fe",
+      "position": [
+        1340,
+        380
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "75TRkaqNm6DBlkaE",
+          "name": "Slack account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://api:8000/alerts/{{ $('Loop Over Alerts').item.json.alert_id }}/ack",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.MM_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"acknowledged_by\": \"n8n: posted to Slack C0C5X8PMAQ2\"}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Acknowledge Alert (POST /alerts/{id}/ack)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "id": "02515d2f-dc68-4499-8517-50e57f27ac80",
+      "position": [
+        1560,
+        380
       ]
     }
   ],
@@ -162,30 +219,74 @@
       "main": [
         [
           {
-            "node": "Any High Risk?",
+            "node": "Get Pending Alerts",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Any High Risk?": {
+    "Get Pending Alerts": {
       "main": [
         [
           {
-            "node": "Get Pending Alerts",
+            "node": "Loop Over Alerts",
             "type": "main",
             "index": 0
           }
-        ],
-        []
+        ]
+      ]
+    },
+    "Loop Over Alerts": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Post Alert to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Alert to Slack": {
+      "main": [
+        [
+          {
+            "node": "Acknowledge Alert (POST /alerts/{id}/ack)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acknowledge Alert (POST /alerts/{id}/ack)": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Now (manual)": {
+      "main": [
+        [
+          {
+            "node": "Call /ingest",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-  "_note": "NOTE: chain 'Get Pending Alerts' output into a Slack node (Post Message) per alert item, then POST /alerts/{id}/ack once posted. Add your own Slack credential in the n8n UI - not exported here for security. AUTH: every HTTP node sends X-API-Key from the MM_API_KEY env var, which docker-compose sets from API_KEY in .env. For production, move it into an n8n Header Auth credential so the secret lives in n8n's encrypted credential store.",
   "settings": {
     "executionOrder": "v1",
     "errorWorkflow": "mmErrorWorkflw03"
   },
-  "active": false
+  "active": true,
+  "_note": "Every 5 min: ingest -> classify -> fetch ALL pending alerts -> for each: post to Slack (C0C5X8PMAQ2) -> ack. Ack only after a successful post (at-least-once: a failed post leaves the alert pending for the next cycle and fires the error workflow; worst case is a duplicate post, never a lost alert). The ack is a SYSTEM acknowledgement (acknowledged_by='n8n: posted to Slack ...'), not a human one. Outbound only (chat.postMessage) - no tunnel needed. AUTH: HTTP nodes send X-API-Key from $env.MM_API_KEY. 'Run Now (manual)' runs one cycle on demand (n8n UI or CLI `n8n execute`)."
 }

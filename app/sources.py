@@ -1,8 +1,9 @@
 # Source list for ingestion. Every URL below was verified to resolve and return
 # entries on 2026-09-28/29. Re-check before a demo: outlets move their feeds.
-# Arab News' direct feed intermittently 403s automated clients; kept because
-# failures are isolated per feed and reported in the /ingest response, and its
-# stories also arrive via the Google News queries.
+# Removed 2026-10-02: Arab News' direct feed (https://www.arabnews.com/rss.xml)
+# has returned 403 to automated clients on every run since 2026-09-29. Its
+# stories still arrive via the Google News queries, which resolve to the
+# publisher. Re-add it only with a licensed feed or an allow-listed client.
 #
 # Two kinds of source:
 #   - Topic-scoped Google News queries (English + Arabic). High precision, and the
@@ -26,7 +27,6 @@ def _gn(query: str, lang: str) -> str:
 
 SOURCES: list[dict] = [
     # --- Direct outlet feeds (keyword-gated) ---
-    {"name": "Arab News", "url": "https://www.arabnews.com/rss.xml", "lang": "en", "keyword_filter": True},
     {"name": "Saudi Gazette", "url": "https://saudigazette.com.sa/rssFeed/74", "lang": "en", "keyword_filter": True},
     {"name": "Gulf News", "url": "https://gulfnews.com/feed", "lang": "en", "keyword_filter": True},
     {"name": "The National", "url": "https://www.thenationalnews.com/arc/outboundfeeds/rss/?outputType=xml", "lang": "en", "keyword_filter": True},

@@ -34,7 +34,7 @@ Then, either:
   ```
   | Workflow | What it does |
   |---|---|
-  | 01 - Ingest and Classify | every 5 min: `/ingest` → `/classify` → pending risk alerts |
+  | 01 - Ingest and Classify | every 5 min (or *Run Now*): `/ingest` → `/classify` → post each pending risk alert to Slack → `/alerts/{id}/ack` |
   | 02 - Briefing Approval and Delivery | 05:30: draft → Slack approval by a named analyst → `/approve` → `/deliver` → post the approved briefing to the DG office channel |
   | 03 - Error Workflow | pages on-call in Slack when 01, 02 or 04 fails |
   | 04 - Analyst Q&A | chat over the archive (see below) |
@@ -78,7 +78,7 @@ their caveats.
 
 ## What's built vs. what's deliberately scoped out
 
-**Built:** ingest (7 outlet feeds + 8 Google News queries, English and Arabic, with
+**Built:** ingest (6 outlet feeds + 8 Google News queries, English and Arabic, with
 Google News links resolved to the real publisher), URL-level + embedding-based
 near-duplicate clustering, 4-theme classification with relevance gate, sentiment,
 priority, risk score and justification (schema-enforced structured output), a cited

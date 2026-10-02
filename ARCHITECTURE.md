@@ -11,7 +11,8 @@ n8n (schedule, 5 min) → POST /classify → per-story structured LLM call (rele
                                        → risk_score ≥ 0.7 → alerts table
                                        → primary vendor down → fallback model (other vendor)
                                        → both vendors down → HTTP 503 → n8n Error Workflow
-n8n (on high risk)    → GET /alerts/pending → notify on-call analyst (Slack) → ack
+n8n (same 5-min run)  → GET /alerts/pending → for each: post to Slack (headline, source,
+                                          risk, reason, link) → POST /alerts/{id}/ack
 n8n (schedule, 05:30 daily) → POST /brief → draft (LLM, cited) → verify (LLM,
                                           claim-by-claim against source) → Postgres
                                        → Slack send-and-wait approval (summary + signed link)
@@ -125,8 +126,16 @@ drift silently across model updates.
    fail does `/classify` return 503, so the n8n Error Workflow pages on-call
    instead of alerts silently stopping (also tested). Overlapping scheduler runs
    are skipped with a Postgres advisory lock rather than double-processing.
-7. A failing feed is isolated and reported per feed in the `/ingest` response.
-8. Nothing reaches the Director General without a human-approved status,
+7. Alert delivery is at-least-once: workflow 01 drains every pending alert each
+   cycle, and acknowledges an alert only after its Slack post succeeds. A failed
+   post leaves it pending for the next cycle (and fires the error workflow), so
+   the worst case is a duplicate post, never a silently lost alert. That ack is a
+   system acknowledgement (`acknowledged_by = "n8n: posted to Slack ..."`): it
+   records delivery, not that a person read the alert. Measuring human response
+   time against the 15-minute target needs a separate `notified_at`, leaving
+   `/ack` for people.
+8. A failing feed is isolated and reported per feed in the `/ingest` response.
+9. Nothing reaches the Director General without a human-approved status,
    degraded or not.
 
 ## Evaluation methodology

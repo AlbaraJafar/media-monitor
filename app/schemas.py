@@ -68,6 +68,9 @@ class BriefingRequest(BaseModel):
     briefing_date: date | None = None  # defaults to today
     # Synthetic fixtures must never reach a real briefing; only the offline demo opts in.
     include_synthetic: bool = False
+    # Offline demo: brief on the synthetic fixtures alone, so the result doesn't
+    # depend on whatever the live feeds delivered in the last 24h.
+    synthetic_only: bool = False
 
 
 class Citation(BaseModel):

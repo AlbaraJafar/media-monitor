@@ -15,7 +15,8 @@ router = APIRouter()
 
 @router.post("", response_model=BriefingResponse)
 def create_briefing(request: BriefingRequest, db: Session = Depends(get_db)):
-    briefing = run_briefing(db, briefing_date=request.briefing_date, include_synthetic=request.include_synthetic)
+    briefing = run_briefing(db, briefing_date=request.briefing_date, include_synthetic=request.include_synthetic,
+                            synthetic_only=request.synthetic_only)
     return BriefingResponse(
         briefing_id=briefing.id,
         status=briefing.status,

@@ -91,7 +91,7 @@ SYNTHETIC_SOURCE = "Synthetic Demo Data"
 
 
 def _select_articles(db: Session, start: datetime, end: datetime,
-                     include_synthetic: bool = False) -> list[tuple[Article, dict]]:
+                     include_synthetic: bool = False, synthetic_only: bool = False) -> list[tuple[Article, dict]]:
     """Canonical, relevant, classified stories in the window, highest-risk first."""
     query = (
         select(
@@ -106,7 +106,9 @@ def _select_articles(db: Session, start: datetime, end: datetime,
         .where(Article.fetched_at >= start, Article.fetched_at <= end)
         .where(Classification.theme != NOT_RELEVANT)
     )
-    if not include_synthetic:
+    if synthetic_only:
+        query = query.where(Article.source == SYNTHETIC_SOURCE)
+    elif not include_synthetic:
         query = query.where(Article.source != SYNTHETIC_SOURCE)
     rows = db.execute(
         query.group_by(Article.id)
@@ -214,10 +216,11 @@ def _save(db: Session, **fields) -> Briefing:
     return briefing
 
 
-def run_briefing(db: Session, briefing_date: date | None = None, include_synthetic: bool = False) -> Briefing:
+def run_briefing(db: Session, briefing_date: date | None = None, include_synthetic: bool = False,
+                 synthetic_only: bool = False) -> Briefing:
     briefing_date = briefing_date or datetime.now(ZoneInfo(settings.briefing_timezone)).date()
     start, end = briefing_window(briefing_date)
-    selected = _select_articles(db, start, end, include_synthetic)
+    selected = _select_articles(db, start, end, include_synthetic, synthetic_only)
     articles = [a for a, _ in selected]
 
     if not selected:

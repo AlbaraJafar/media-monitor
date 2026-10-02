@@ -1,4 +1,4 @@
-.PHONY: up down logs ingest classify brief brief-synthetic alerts costs latency eval demo demo-safe seed reset
+.PHONY: up down logs ingest classify brief brief-synthetic seed-reset alerts costs latency eval demo demo-safe seed reset
 
 -include .env
 API := http://localhost:8000
@@ -25,6 +25,9 @@ logs:
 seed:
 	docker compose exec api python -m scripts.seed_synthetic
 
+seed-reset:  ## re-arm the synthetic fixtures: fresh timestamps, old classifications/alerts cleared
+	docker compose exec api python -m scripts.seed_synthetic --reset
+
 ingest:
 	$(CURL) -X POST $(API)/ingest -d '{}' | $(JSON)
 
@@ -34,8 +37,8 @@ classify:
 brief:
 	$(CURL) -X POST $(API)/brief -d '{}' | $(JSON)
 
-brief-synthetic:  ## offline demo only: lets synthetic fixtures into the briefing
-	$(CURL) -X POST $(API)/brief -d '{"include_synthetic": true}' | $(JSON)
+brief-synthetic:  ## offline demo only: a briefing built from the synthetic fixtures alone
+	$(CURL) -X POST $(API)/brief -d '{"synthetic_only": true}' | $(JSON)
 
 alerts:
 	$(CURL) $(API)/alerts/pending | $(JSON)
@@ -52,5 +55,5 @@ eval:
 demo: ingest classify alerts brief
 	@echo "Core loop ran end to end on live feeds. Check n8n at http://localhost:5678 for the approval workflow."
 
-demo-safe: seed classify alerts brief-synthetic
+demo-safe: seed-reset classify alerts brief-synthetic
 	@echo "Ran the core loop on synthetic backup data (no live feed dependency)."

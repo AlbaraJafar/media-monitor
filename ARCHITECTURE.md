@@ -121,7 +121,7 @@ drift silently across model updates.
    can see the system is running degraded. A per-batch circuit breaker sends the
    rest of a batch straight to the fallback after 3 primary failures, so an outage
    doesn't spend the 15-minute alert budget on retries. The fallback is weaker on
-   the gold set (5/7 risk items vs 6/7): degraded, not dark. Only if both vendors
+   the gold set (2 false alarms vs 1, theme F1 0.75 vs 0.82): degraded, not dark. Only if both vendors
    fail does `/classify` return 503, so the n8n Error Workflow pages on-call
    instead of alerts silently stopping (also tested). Overlapping scheduler runs
    are skipped with a Postgres advisory lock rather than double-processing.
@@ -141,14 +141,14 @@ worse than a false alarm — plus relevance accuracy, multi-label theme F1 and
 sentiment, sliced by language. `eval/compare_models.py` runs the production prompt
 on several models side by side.
 
-Results on the current prompt (30 September 2026):
+Results on the current prompt (30 September 2026; synthetic item #9 re-run 2 October after rewording):
 
 | Model | Risk items caught | False alarms | Relevance | Theme F1 | $ / 1,000 |
 |---|---|---|---|---|---|
 | gpt-6-luna | 6/7 | 1 | 91% | 0.82 | 0.27 |
 | gpt-6-sol | 6/7 | 1 | 91% | 0.84 | 4.85 |
-| claude-haiku-4-5 | 5/7 | 2 | 87% | 0.75 | 2.77 |
-| claude-sonnet-5-5 | 4/7 | 0 | 94% | 0.84 | 7.97 |
+| claude-haiku-4-5 | 6/7 | 2 | 87% | 0.75 | 2.77 |
+| claude-sonnet-5-5 | 5/7 | 0 | 94% | 0.84 | 7.97 |
 
 What the evaluation changed:
 - **The alert policy belonged in the prompt.** The first prompt produced 3–10 false
@@ -165,7 +165,15 @@ Caveats, stated plainly:
 - Scores vary between runs near the threshold: one article scored 0.82 in the
   eval and 0.55 when re-classified. A fixed 0.7 threshold is also not neutral
   across vendors, which calibrate differently.
-- Three synthetic fixtures were edited to name the country they are set in.
+- Synthetic fixtures were edited after seeing results: three to name the country
+  they are set in, and (2 October) the coral-reef item #9, reworded from a
+  hedged report ("could draw further scrutiny", already disputed, niche reach)
+  into a clear current story, because it sat on the 0.70 alert line (primary
+  model 4/5 runs alerting, fallback 0/5; after: 5/5 on both). Its gold label was
+  always high-risk, but the rewording made it easier: Haiku and Sonnet each gained
+  one caught item (5/7 -> 6/7 and 4/7 -> 5/7). The primary model's numbers did
+  not change. Current-prompt outputs on the earlier wording are in git history
+  (commit 0d08585); eval/results/prompt_v1 still holds old-prompt outputs on it.
 - Both current luna/sol errors are on `headline_only` articles, where the reviewer
   read the full source and the model saw only the headline (see next section).
 

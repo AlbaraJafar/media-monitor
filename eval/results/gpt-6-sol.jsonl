@@ -4,7 +4,6 @@
 {"url": "https://synthetic.local/articles/5", "ok": true, "relevant": true, "themes": ["aviation_visa_and_entry_policy"], "sentiment": "positive", "risk": 0.05, "latency_ms": 3924}
 {"url": "https://synthetic.local/articles/6", "ok": true, "relevant": true, "themes": ["aviation_visa_and_entry_policy", "reputational_risk_or_negative_coverage"], "sentiment": "negative", "risk": 0.52, "latency_ms": 7736}
 {"url": "https://synthetic.local/articles/8", "ok": true, "relevant": true, "themes": ["reputational_risk_or_negative_coverage"], "sentiment": "negative", "risk": 0.9, "latency_ms": 6478}
-{"url": "https://synthetic.local/articles/9", "ok": true, "relevant": true, "themes": ["destination_and_giga_project_launches", "reputational_risk_or_negative_coverage"], "sentiment": "negative", "risk": 0.78, "latency_ms": 4177}
 {"url": "https://synthetic.local/articles/10", "ok": true, "relevant": false, "themes": [], "sentiment": "positive", "risk": 0.0, "latency_ms": 5398}
 {"url": "https://synthetic.local/articles/11", "ok": true, "relevant": true, "themes": ["national_tourism_strategy_and_visitor_numbers", "aviation_visa_and_entry_policy"], "sentiment": "positive", "risk": 0.05, "latency_ms": 4026}
 {"url": "https://synthetic.local/articles/12", "ok": true, "relevant": true, "themes": ["reputational_risk_or_negative_coverage"], "sentiment": "negative", "risk": 0.85, "latency_ms": 8019}
@@ -118,3 +117,4 @@
 {"url": "https://synthetic.local/articles/4", "ok": true, "relevant": true, "themes": ["destination_and_giga_project_launches", "reputational_risk_or_negative_coverage"], "sentiment": "negative", "risk": 0.52, "latency_ms": 4714}
 {"url": "https://synthetic.local/articles/7", "ok": true, "relevant": true, "themes": ["reputational_risk_or_negative_coverage"], "sentiment": "negative", "risk": 0.82, "latency_ms": 6523}
 {"url": "https://synthetic.local/articles/16", "ok": true, "relevant": true, "themes": ["reputational_risk_or_negative_coverage"], "sentiment": "negative", "risk": 0.52, "latency_ms": 5715}
+{"url": "https://synthetic.local/articles/9", "ok": true, "relevant": true, "themes": ["destination_and_giga_project_launches", "reputational_risk_or_negative_coverage"], "sentiment": "negative", "risk": 0.92, "latency_ms": 4962}

@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     classify_model: str = "gpt-6-luna"         # cheap tier, high volume, structured output
     classify_reasoning_effort: str | None = None  # e.g. "low"; unset = model default
     # Different vendor on purpose: the alert path must survive a whole-provider outage.
-    # Lower alert recall than the primary on the gold set (5/7 vs 6/7) — degraded, not dark.
+    # Weaker than the primary on the gold set (more false alarms, lower theme F1) — degraded, not dark.
     classify_fallback_model: str = "claude-haiku-4-5"
     brief_model: str = "gpt-6-sol"             # briefing draft + claim verifier
     brief_fallback_model: str = "claude-sonnet-5-5"  # deliberately a different vendor: survives a whole-provider outage

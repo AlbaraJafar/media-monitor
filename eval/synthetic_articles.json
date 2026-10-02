@@ -60,9 +60,9 @@
   {
     "source": "Synthetic Demo Data",
     "url": "https://synthetic.local/articles/9",
-    "title": "Environmental Group Criticizes Coastal Project Over Coral Reef Impact",
+    "title": "Environmental Group Alleges Coastal Project Damaged Coral Reef; Footage Spreads Ahead of Opening",
     "language": "en",
-    "clean_text": "An environmental advocacy organization released a report this week alleging that construction activity at the Red Sea coastal development has damaged coral reef areas near the main resort cluster, contradicting the project's public sustainability commitments. Project officials disputed the findings, saying independent environmental monitoring continues throughout construction. The report has been shared widely among environmental journalists and could draw further scrutiny ahead of the resort's public opening.",
+    "clean_text": "An international environmental advocacy organization published a report and drone footage on Monday alleging that construction at the Red Sea coastal development has damaged coral reef areas near the main resort cluster, directly contradicting the project's public sustainability commitments. The footage has been viewed more than 1.5 million times in 24 hours, and two major international news outlets ran the allegations as lead stories today, one of them requesting comment from the Destination Development Authority. Several international dive-tour operators said they are reviewing planned trips to the site. Project officials have not yet responded to the specific allegations; a spokesperson said only that independent environmental monitoring continues. The story is spreading less than two months before the resort's public opening.",
     "force_high_risk_note": "deliberate high-risk item for alert-path demo"
   },
   {

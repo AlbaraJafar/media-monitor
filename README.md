@@ -16,7 +16,7 @@ Makefile directly.)
    git clone <this-repo> && cd media-monitor
    cp .env.example .env        # add OPENAI_API_KEY (and ANTHROPIC_API_KEY for the fallback), set API_KEY
    ```
-2. Build and start Postgres+pgvector, the API, n8n and Adminer (first build: ~4 minutes):
+2. Build and start Postgres+pgvector, the API, n8n and Adminer (first build: 4-8 minutes, depending on your connection):
    ```bash
    make up
    ```

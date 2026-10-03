@@ -15,15 +15,15 @@
     },
     {
       "parameters": {
-        "select": "channel",
-        "channelId": {
-          "__rl": true,
-          "value": "C0C5X8PMAQ2",
-          "mode": "id"
-        },
+        "select": "user",
         "text": "=:rotating_light: n8n workflow failed: *{{ $json.workflow.name }}*\nFailed node: {{ $json.execution.lastNodeExecuted || 'unknown' }}\nError: {{ $json.execution.error.message }}\nExecution: {{ $json.execution.url || '(manual run, no URL)' }}\nIf this is /classify returning 503, BOTH LLM vendors are failing: risk alerts are stopped.",
         "otherOptions": {
           "includeLinkToWorkflow": false
+        },
+        "user": {
+          "__rl": true,
+          "value": "U0C5S49GTPX",
+          "mode": "id"
         }
       },
       "name": "Notify On-Call",
@@ -60,5 +60,5 @@
     "executionOrder": "v1"
   },
   "active": false,
-  "_note": "Error workflow: pages on-call in Slack when a workflow that names this one as its Error Workflow fails (01 and 02 do). Posts to the approvals channel by default; point 'Notify On-Call' at the on-call channel if it differs. An Error Trigger only fires for OTHER workflows, which is why this must be its own workflow, not a node on a shared canvas."
+  "_note": "Error workflow: DMs the developer in Slack (user U0C5S49GTPX) when a workflow that names this one as its Error Workflow fails (01, 02, 04). Kept out of the approvals/briefing channel on purpose: it is a developer alert. To route elsewhere, change 'Notify On-Call' (Send Message To: user/channel). An Error Trigger only fires for OTHER workflows, which is why this must be its own workflow."
 }

@@ -49,7 +49,7 @@ Then, either:
   |---|---|
   | 01 - Ingest and Classify | every 5 min (or *Run Now*): `/ingest` → `/classify` → post each pending risk alert to Slack (🔴 risk ≥ 0.85, 🟠 below: a display cue only) → `/alerts/{id}/ack` |
   | 02 - Briefing Approval and Delivery | 05:30 (or *Run Now*): draft → Slack **Approve / Disapprove** by a named analyst. Approve → `/approve` → `/deliver` → post to the DG office channel. Disapprove → `/disapprove`, stop. No decision in 120 min → Slack `@here` + email to `ANALYST_TEAM_EMAIL`, stop. Only Approve can reach delivery. |
-  | 03 - Error Workflow | pages on-call in Slack when 01, 02 or 04 fails |
+  | 03 - Error Workflow | DMs the developer in Slack (not the analysts' channel) when 01, 02 or 04 fails |
   | 04 - Analyst Q&A | chat over the archive (see below) |
 
   The Slack messages carry a length-bounded summary plus a signed, expiring link to

@@ -114,9 +114,17 @@ def slack_summary(b: Briefing, view_url: str, purpose: str = "approval") -> str:
     return text
 
 
+def headline_text(b: Briefing) -> str:
+    """The briefing's headline section as plain text (the degraded banner for a degraded one)."""
+    if is_degraded(b):
+        return _plain(b.content_md.split("\n## ")[0])
+    return _plain(_section(b.content_md, "Headline Summary")) or "(no headline summary in this draft)"
+
+
 def summary_fields(b: Briefing) -> dict:
     view_url = sign_briefing_link(b.id)
     return {
+        "headline_text": headline_text(b),
         "briefing_date": b.briefing_date,
         "verification": verification_status(b),
         "themes_covered": themes_covered(b),

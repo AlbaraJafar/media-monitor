@@ -93,6 +93,7 @@ class BriefingResponse(BaseModel):
     themes_covered: int
     sources_cited: int
     view_url: str              # signed, expiring, read-only link to the full briefing
+    headline_text: str         # headline section as plain text (escalation email body)
     slack_summary: str         # plain text, always under Slack's 3,000-char block limit
 
 

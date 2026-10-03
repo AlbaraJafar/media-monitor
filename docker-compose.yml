@@ -76,6 +76,9 @@ services:
       # Public URL Slack calls back to for the Approve button (send-and-wait).
       # Per-machine: set N8N_WEBHOOK_URL in .env; empty means n8n uses localhost.
       - WEBHOOK_URL=${N8N_WEBHOOK_URL:-}
+      # Escalation email when a briefing gets no decision before the approval wait expires.
+      - ANALYST_TEAM_EMAIL=${ANALYST_TEAM_EMAIL:-}
+      - EMAIL_FROM=${EMAIL_FROM:-}
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n:/workflows:ro

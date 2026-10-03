@@ -84,6 +84,7 @@ class Citation(BaseModel):
 class BriefingResponse(BaseModel):
     briefing_id: int
     briefing_date: date
+    created_at: datetime       # lets the timeout escalation say how long it has waited
     status: str
     content_md: str
     citations: list[Citation]

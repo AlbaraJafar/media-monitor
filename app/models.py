@@ -70,6 +70,8 @@ class Briefing(Base):
     unverified_claims: Mapped[list] = mapped_column(JSONB, default=list)
     approved_by: Mapped[str | None] = mapped_column(Text, nullable=True)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    disapproved_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    disapproved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 

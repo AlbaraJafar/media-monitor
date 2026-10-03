@@ -60,13 +60,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_alerts_article_id ON alerts (article_id);
 CREATE TABLE IF NOT EXISTS briefings (
     id              BIGSERIAL PRIMARY KEY,
     briefing_date   DATE NOT NULL,
-    status          TEXT NOT NULL DEFAULT 'draft',  -- draft | degraded | approved | delivered
+    status          TEXT NOT NULL DEFAULT 'draft',  -- draft | degraded | approved | delivered | disapproved
     content_md      TEXT NOT NULL,      -- what gets delivered (analyst-edited if they edited)
     draft_md        TEXT,               -- the untouched AI draft, kept for the edit-diff feedback loop
     citations_json  JSONB NOT NULL DEFAULT '[]',
     unverified_claims JSONB NOT NULL DEFAULT '[]',
     approved_by     TEXT,
     approved_at     TIMESTAMPTZ,
+    disapproved_by  TEXT,               -- an explicit "Disapprove" in Slack: recorded, never delivered
+    disapproved_at  TIMESTAMPTZ,
     delivered_at    TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );

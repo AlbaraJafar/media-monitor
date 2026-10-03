@@ -139,7 +139,7 @@
           "value": "C0C5X8PMAQ2",
           "mode": "id"
         },
-        "text": "={{ $json.source === 'Synthetic Demo Data' ? '[SYNTHETIC DEMO DATA] ' : '' }}:rotating_light: *Risk alert {{ Number($json.risk_score).toFixed(2) }}* — {{ $json.title }}\nSource: {{ $json.source }}\nWhy: {{ $json.reason }}\n{{ $json.url }}",
+        "text": "={{ Number($json.risk_score) >= 0.85 ? ':red_circle:' : ':large_orange_circle:' }} {{ $json.source === 'Synthetic Demo Data' ? '[SYNTHETIC DEMO DATA] ' : '' }}:rotating_light: *Risk alert {{ Number($json.risk_score).toFixed(2) }}* — {{ $json.title }}\nSource: {{ $json.source }}\nWhy: {{ $json.reason }}\n{{ $json.url }}",
         "otherOptions": {
           "includeLinkToWorkflow": false
         }
@@ -288,5 +288,5 @@
     "errorWorkflow": "mmErrorWorkflw03"
   },
   "active": true,
-  "_note": "Every 5 min: ingest -> classify -> fetch ALL pending alerts -> for each: post to Slack (C0C5X8PMAQ2) -> ack. Ack only after a successful post (at-least-once: a failed post leaves the alert pending for the next cycle and fires the error workflow; worst case is a duplicate post, never a lost alert). The ack is a SYSTEM acknowledgement (acknowledged_by='n8n: posted to Slack ...'), not a human one. Outbound only (chat.postMessage) - no tunnel needed. AUTH: HTTP nodes send X-API-Key from $env.MM_API_KEY. 'Run Now (manual)' runs one cycle on demand (n8n UI or CLI `n8n execute`)."
+  "_note": "Every 5 min: ingest -> classify -> fetch ALL pending alerts -> for each: post to Slack (C0C5X8PMAQ2) -> ack. Ack only after a successful post (at-least-once: a failed post leaves the alert pending for the next cycle and fires the error workflow; worst case is a duplicate post, never a lost alert). The ack is a SYSTEM acknowledgement (acknowledged_by='n8n: posted to Slack ...'), not a human one. Outbound only (chat.postMessage) - no tunnel needed. AUTH: HTTP nodes send X-API-Key from $env.MM_API_KEY. 'Run Now (manual)' runs one cycle on demand (n8n UI or CLI `n8n execute`). Severity cue: red circle for risk >= 0.85, orange for the rest (all alerts are already >= the 0.70 alert threshold). Display only: it does not change which items alert."
 }

@@ -11,13 +11,14 @@ n8n (schedule, 5 min) → POST /classify → per-story structured LLM call (rele
                                        → risk_score ≥ 0.7 → alerts table
                                        → primary vendor down → fallback model (other vendor)
                                        → both vendors down → HTTP 503 → n8n Error Workflow
-n8n (same 5-min run)  → GET /alerts/pending → for each: post to Slack (headline, source,
-                                          risk, reason, link) → POST /alerts/{id}/ack
+n8n (same 5-min run)  → GET /alerts/pending → for each: post to Slack (severity cue,
+                                          headline, source, risk, reason, link) → POST /alerts/{id}/ack
 n8n (schedule, 05:30 daily) → POST /brief → draft (LLM, cited) → verify (LLM,
                                           claim-by-claim against source) → Postgres
-                                       → Slack send-and-wait approval (summary + signed link)
-                                       → approved by a named analyst → POST /approve
-                                       → POST /deliver → post approved briefing to DG office channel
+                                       → Slack send-and-wait: Approve / Disapprove (summary + signed link)
+                                       → Approve (named)    → POST /approve → POST /deliver → DG office channel
+                                       → Disapprove (named) → POST /disapprove → stop
+                                       → no decision in 120 min → Slack @here + email to analyst team → stop
 Analyst → n8n hosted chat (n8n login) → POST /ask → hybrid retrieval (BM25 + embeddings)
                                        → grounded answer + the articles it cites
 ```
@@ -86,7 +87,8 @@ drift silently across model updates.
   pipeline's behavior.
 - **Human sign-off is enforced technically, not just procedurally:** only a
   briefing with status=`approved` can be delivered; `/deliver` rejects anything
-  else, and every endpoint except `/health` requires the shared API key. The key
+  else (including `disapproved`), and every endpoint except `/health` requires
+  the shared API key. The key
   stands in for SSO: in production `approved_by` would come from the
   authenticated identity rather than a request field.
 - **Audit trail:** `approved_by`, `approved_at`, the delivered `content_md` and the
@@ -136,7 +138,25 @@ drift silently across model updates.
    `/ack` for people.
 8. A failing feed is isolated and reported per feed in the `/ingest` response.
 9. Nothing reaches the Director General without a human-approved status,
-   degraded or not.
+   degraded or not. The approval fails closed, and the three outcomes are
+   separated structurally in workflow 02, not by convention:
+   - **Approve** (a captured, named Slack responder) is the only path wired to
+     `/deliver` and the DG-office post.
+   - **Disapprove** (named) calls `/disapprove`, which records who and when and
+     sets status `disapproved` (never left as a dangling draft), then stops. No
+     email: it is an explicit decision, already visible in the Slack thread.
+   - **No decision** before the 120-minute wait expires (the Slack node then
+     outputs its input, with no decision in it) or a click with no captured
+     responder: an `@here` ping in the approvals channel and an email to
+     `ANALYST_TEAM_EMAIL`, in parallel, saying which briefing is waiting, for how
+     long, and linking to it. Neither branch can reach delivery; the API would
+     refuse it anyway. The expired buttons cannot be used afterwards, so a
+     decision then needs a fresh run of workflow 02.
+10. Alert severity cue: each Slack alert starts with a red circle for
+    risk_score >= 0.85 and an orange circle below that. It is a visual triage aid
+    only, not a second alerting tier: every alert already cleared the single 0.70
+    threshold, and the cue changes how an alert is displayed, never which items
+    alert or who is notified.
 
 ## Evaluation methodology
 

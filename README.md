@@ -47,8 +47,8 @@ Then, either:
   ```
   | Workflow | What it does |
   |---|---|
-  | 01 - Ingest and Classify | every 5 min (or *Run Now*): `/ingest` → `/classify` → post each pending risk alert to Slack → `/alerts/{id}/ack` |
-  | 02 - Briefing Approval and Delivery | 05:30: draft → Slack approval by a named analyst → `/approve` → `/deliver` → post the approved briefing to the DG office channel |
+  | 01 - Ingest and Classify | every 5 min (or *Run Now*): `/ingest` → `/classify` → post each pending risk alert to Slack (🔴 risk ≥ 0.85, 🟠 below: a display cue only) → `/alerts/{id}/ack` |
+  | 02 - Briefing Approval and Delivery | 05:30 (or *Run Now*): draft → Slack **Approve / Disapprove** by a named analyst. Approve → `/approve` → `/deliver` → post to the DG office channel. Disapprove → `/disapprove`, stop. No decision in 120 min → Slack `@here` + email to `ANALYST_TEAM_EMAIL`, stop. Only Approve can reach delivery. |
   | 03 - Error Workflow | pages on-call in Slack when 01, 02 or 04 fails |
   | 04 - Analyst Q&A | chat over the archive (see below) |
 
@@ -56,6 +56,16 @@ Then, either:
   the full briefing (`/brief/{id}/view/...`), because Slack rejects blocks over 3,000
   characters. Select your Slack credential on the Slack nodes after a fresh import,
   and invite the Slack app to both channels.
+
+  The Approve/Disapprove buttons need Slack to reach n8n: expose it (e.g.
+  `cloudflared tunnel --url http://localhost:5678`), put that URL in `.env` as
+  `N8N_WEBHOOK_URL`, run `docker compose up -d --no-deps n8n`, and set the Slack
+  app's Interactivity Request URL to `<that URL>/webhook-waiting-slack`. A quick
+  tunnel's URL changes every time `cloudflared` restarts, so repeat this then.
+
+  The no-decision email needs `ANALYST_TEAM_EMAIL` and `EMAIL_FROM` in `.env` and an
+  SMTP credential selected on the *Email Analyst Team (timeout)* node (for Gmail:
+  `smtp.gmail.com`, port 465, SSL, and an app password, never your normal one).
 - **Ask the archive in plain language (n8n chat):** activate *04 - Analyst Q&A* and
   open the chat URL shown on its *Analyst Chat* node (sign in with your n8n account).
   Each question goes to `POST /ask` (hybrid BM25 + embedding retrieval over the
@@ -98,7 +108,8 @@ priority, risk score and justification (schema-enforced structured output), a ci
 briefing draft with a **claim-level verifier** that checks every claim against its
 cited source and fails closed, a tested **cross-vendor model fallback** on both the
 alert path and the briefing, and a no-LLM DEGRADED briefing, n8n approval workflow
-(send-and-wait to a named analyst, approver recorded) and delivery of the approved
+(Approve / Disapprove by a named analyst, recorded either way, failing closed with a
+Slack and email escalation when nobody decides) and delivery of the approved
 briefing to the DG office Slack channel, a 15-minute risk-alert path, a
 hybrid-retrieval (BM25 + embeddings) Q&A endpoint with an n8n chat front end,
 per-call cost/latency logging, and an evaluation harness that compares models side

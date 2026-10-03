@@ -63,7 +63,11 @@
         },
         "message": "={{ $json.slack_summary }}",
         "approvalOptions": {
-          "values": {}
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Approve",
+            "disapproveLabel": "Disapprove"
+          }
         },
         "captureResponder": true,
         "options": {
@@ -192,14 +196,23 @@
     },
     {
       "parameters": {
-        "otherOptions": {}
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C5X8PMAQ2",
+          "mode": "id"
+        },
+        "text": "=<!here> :hourglass: No decision on the daily briefing for {{ $('Generate Draft').first().json.briefing_date }} (briefing #{{ $('Generate Draft').first().json.briefing_id }}) after {{ Math.round(($now.toMillis() - new Date($('Generate Draft').first().json.created_at).getTime()) / 60000) }} minutes. It has NOT been delivered.\nRead it: {{ $('Generate Draft').first().json.view_url }}\nThe Approve/Disapprove buttons have expired: re-run workflow 02 to send a fresh approval request.",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
       },
       "name": "Escalate To Backup Analyst",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
       "position": [
-        1280,
-        496
+        1504,
+        640
       ],
       "id": "ca0e920e-23f8-4b65-b6fb-bf0d8f2f5a6b",
       "webhookId": "d6e72fac-06ba-4434-9aae-75b427a639a0",
@@ -237,10 +250,125 @@
           "name": "Slack account"
         }
       }
+    },
+    {
+      "parameters": {},
+      "name": "Run Now (manual)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "id": "911d09cb-0b31-4794-9689-09e72acacef3",
+      "position": [
+        240,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "26da2f4c-5c86-441f-aa70-7bf11a12c738",
+              "leftValue": "={{ $json.data?.approved === false }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "f0e0cdc3-adc3-45db-8565-284f3727940a",
+              "leftValue": "={{ $json.data?.responder?.id ?? '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Disapproved by a Named Analyst?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "id": "0f784170-c560-4fa4-ae1c-eddf86a15fe8",
+      "position": [
+        1280,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://api:8000/brief/{{ $('Generate Draft').first().json.briefing_id }}/disapprove",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.MM_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ disapproved_by: 'slack:' + ($json.data.responder.email || $json.data.responder.name || $json.data.responder.username || $json.data.responder.id) + ' (' + $json.data.responder.id + ')' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Record Disapproval (POST /disapprove)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "id": "25bd3c92-6a15-4640-927d-3141394eff2a",
+      "position": [
+        1504,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.EMAIL_FROM }}",
+        "toEmail": "={{ $env.ANALYST_TEAM_EMAIL }}",
+        "subject": "=No decision yet: daily media briefing {{ $('Generate Draft').first().json.briefing_date }} (#{{ $('Generate Draft').first().json.briefing_id }})",
+        "emailFormat": "text",
+        "text": "=The daily media briefing for {{ $('Generate Draft').first().json.briefing_date }} (briefing #{{ $('Generate Draft').first().json.briefing_id }}) has had no Approve or Disapprove for {{ Math.round(($now.toMillis() - new Date($('Generate Draft').first().json.created_at).getTime()) / 60000) }} minutes, so it has NOT been delivered to the DG office.\n\nRead the full briefing: {{ $('Generate Draft').first().json.view_url }}\n\nTo decide: the buttons on the original Slack request have expired. Re-run workflow \"02 - Briefing Approval and Delivery\" in n8n to send a fresh approval request.\n\nVerification: {{ $('Generate Draft').first().json.verification }} | unverified claims flagged: {{ $('Generate Draft').first().json.unverified_claim_count }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "name": "Email Analyst Team (timeout)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "id": "99408129-0502-4f2c-96fc-e08d8a16621c",
+      "position": [
+        1504,
+        800
+      ]
     }
   ],
   "connections": {
     "05:30 Daily": {
+      "main": [
+        [
+          {
+            "node": "Generate Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Now (manual)": {
       "main": [
         [
           {
@@ -282,7 +410,13 @@
             "index": 0
           }
         ],
-        []
+        [
+          {
+            "node": "Disapproved by a Named Analyst?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Record Approval (POST /approve)": {
@@ -306,6 +440,29 @@
           }
         ]
       ]
+    },
+    "Disapproved by a Named Analyst?": {
+      "main": [
+        [
+          {
+            "node": "Record Disapproval (POST /disapprove)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Escalate To Backup Analyst",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Analyst Team (timeout)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -322,5 +479,5 @@
     "name": null,
     "description": null
   },
-  "_note": "DELIVERY: after /deliver (the API's approved-only gate) the approved briefing is posted to the DG office channel as delivery_summary — same 3,000-char-bounded renderer, 30-day signed /view link. The Slack app must be a member of that channel."
+  "_note": "Approval fails closed. Approve (captured responder) -> /approve -> /deliver -> DG office post: the ONLY route to delivery. Disapprove (captured responder) -> /disapprove (status disapproved, who/when) -> stop, no email: an explicit decision, already visible in the Slack thread. No decision before the 120-min wait expires (the node then outputs its input, with no data.approved) or a click with no captured responder -> Slack @here ping + email to $env.ANALYST_TEAM_EMAIL, in parallel; neither reaches delivery. The API also refuses /deliver for anything not 'approved'. Email needs an SMTP credential selected in the n8n UI."
 }

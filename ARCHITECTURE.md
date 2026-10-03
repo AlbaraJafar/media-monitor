@@ -203,6 +203,11 @@ Caveats, stated plainly:
   one caught item (5/7 -> 6/7 and 4/7 -> 5/7). The primary model's numbers did
   not change. Current-prompt outputs on the earlier wording are in git history
   (commit 0d08585); eval/results/prompt_v1 still holds old-prompt outputs on it.
+  (3 October) The Arabic viral-video item #12 got the same country fix as the
+  first three ("في المملكة", "in the Kingdom", added; nothing else changed): it
+  never said where it happened, and the primary model judged it not relevant in
+  2 of 5 runs (alerting 3/5; after: 5/5, 0.80-0.86). No eval number changed: the
+  cached outputs it replaced had already caught it.
 - Both current luna/sol errors are on `headline_only` articles, where the reviewer
   read the full source and the model saw only the headline (see next section).
 

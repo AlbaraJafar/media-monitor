@@ -165,5 +165,5 @@ scripts/init_db.sql schema (articles, classifications, alerts, briefings, runs, 
 
 ## Notes on data
 
-Only public news sources / synthetic data used, per the brief's constraint. No
-personal data or confidential material from any employer.
+Only public news sources / synthetic data used, per. No
+personal data or confidential material.
